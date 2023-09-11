@@ -23,3 +23,4 @@ target_link_libraries(
 )
 
 target_compile_options(redis_perf PRIVATE -O0 -g)
+target_compile_options(redis_perf_tpt PRIVATE -O2 -g)
