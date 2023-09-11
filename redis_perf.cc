@@ -36,7 +36,7 @@ static int load_ycsb_single(char* wl_name,
                             uint32_t all_client_num,
                             __OUT Workload* wl) {
   char wl_fname[128];
-  sprintf(wl_fname, "workloads/%s", wl_name);
+  sprintf(wl_fname, "../workloads/ycsb/%s", wl_name);
   FILE* f = fopen(wl_fname, "r");
   assert(f != NULL);
   printf("Client %d loading %s\n", server_id, wl_name);
