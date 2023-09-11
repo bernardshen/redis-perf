@@ -220,24 +220,18 @@ ClientArgs initial_args = {
 };
 
 int main(int argc, char** argv) {
-  if (argc != 7) {
-    printf(
-        "Usage: %s <client_st_id> <num_clients> <memcached_ip> <workload> "
-        "<redis_ip> "
-        "<run_time>\n",
-        argv[0]);
+  if (argc != 5) {
+    printf("Usage: %s <num_clients> <workload> <redis_ip> <run_time>\n",
+           argv[0]);
     exit(1);
   }
-  int sid = atoi(argv[1]);
-  initial_args.all_client_num = atoi(argv[2]);
-  strcpy(initial_args.controller_ip, argv[3]);
-  strcpy(initial_args.wl_name, argv[4]);
-  strcpy(initial_args.redis_ip, argv[5]);
-  initial_args.run_times_s = atoi(argv[6]);
+  int sid = 1;
+  initial_args.all_client_num = atoi(argv[1]);
+  strcpy(initial_args.wl_name, argv[2]);
+  strcpy(initial_args.redis_ip, argv[3]);
+  initial_args.run_times_s = atoi(argv[4]);
 
-  printf("st_cllient_id: %d\n", sid);
   printf("num_clients: %d\n", initial_args.all_client_num);
-  printf("memcached_ip: %s\n", initial_args.controller_ip);
   printf("workload: %s\n", initial_args.wl_name);
   printf("redis_ip: %s\n", initial_args.redis_ip);
   printf("running %d seconds\n", initial_args.run_times_s);
