@@ -116,9 +116,7 @@ int load_workload_ycsb(char* wl_name,
 
 void* worker(void* _args) {
   ClientArgs* args = (ClientArgs*)_args;
-  // auto redis_cluster = RedisCluster(args->redis_ip);
   auto redis_cluster = Redis(args->redis_ip);
-  DMCMemcachedClient con_client(args->controller_ip);
 
   int ret = stick_this_thread_to_core(args->core);
   if (ret)
@@ -137,7 +135,7 @@ void* worker(void* _args) {
   memset(dumb_value_char, 'a', 254);
   std::string dumb_value_str(dumb_value_char);
   printf("Client %d waiting syncing\n", args->cid);
-  con_client.memcached_sync_ready(args->cid);
+  pthread_barrier_wait(args->load_barrier);
   for (int i = 0; i < load_wl.num_ops; i++) {
     uint64_t key_addr, val_addr;
     uint32_t key_size, val_size;
@@ -162,11 +160,11 @@ void* worker(void* _args) {
   uint64_t tick_us = 500000;
   uint64_t lat_tick_us = tick_us * 8;
   uint32_t cur_tick = 0;
-  std::vector<uint32_t> ops_list;
-  std::map<uint32_t, uint32_t> lat_map;
+  std::vector<uint32_t> * ops_list = args->ops_list;
+  std::map<uint32_t, uint32_t> * lat_map = args->lat_map;
   // sync to do trans
   printf("Client %d waiting sync\n", args->cid);
-  con_client.memcached_sync_ready(args->cid);
+  pthread_barrier_wait(args->trans_barrier);
   gettimeofday(&st, NULL);
   while (true) {
     uint32_t idx = seq % trans_wl.num_ops;
@@ -194,9 +192,9 @@ void* worker(void* _args) {
     }
     seq++;
     gettimeofday(&et, NULL);
-    lat_map[diff_ts_us(&et, &tst)]++;
+    (*lat_map)[diff_ts_us(&et, &tst)]++;
     if (diff_ts_us(&et, &st) > cur_tick * tick_us) {
-      ops_list.push_back(seq);
+      (*ops_list).push_back(seq);
       cur_tick++;
     }
     if (cur_tick == num_ticks)
@@ -206,8 +204,6 @@ void* worker(void* _args) {
   trans_res["ops_cont"] = json(ops_list);
   trans_res["lat_map"] = json(lat_map);
   printf("itemsize: %d\n", strlen(trans_res.dump().c_str()) / 1024);
-  con_client.memcached_put_result((void*)trans_res.dump().c_str(),
-                                  strlen(trans_res.dump().c_str()), args->cid);
   // save file to local
   char fname_buf[256];
   sprintf(fname_buf, "results/worker-%d.json", args->cid);
@@ -245,6 +241,11 @@ int main(int argc, char** argv) {
   printf("redis_ip: %s\n", initial_args.redis_ip);
   printf("running %d seconds\n", initial_args.run_times_s);
 
+  pthread_barrier_t load_barrier;
+  pthread_barrier_t trans_barrier;
+  pthread_barrier_init(&load_barrier, NULL, initial_args.all_client_num);
+  pthread_barrier_init(&trans_barrier, NULL, initial_args.all_client_num);
+
   ClientArgs args[initial_args.all_client_num];
   pthread_t tids[initial_args.all_client_num];
   for (int i = 0; i < initial_args.all_client_num; i++) {
@@ -252,10 +253,25 @@ int main(int argc, char** argv) {
     args[i].cid = i + sid;
     args[i].core = i % NUM_CORES;
 
+    args[i].load_barrier = &load_barrier;
+    args[i].trans_barrier = &trans_barrier;
+    args[i].ops_list = new std::vector<uint32_t>();
+    args[i].lat_map = new std::map<uint32_t, uint32_t>();
+    args[i].ops_list->clear();
+    args[i].lat_map->clear();
+
     pthread_create(&tids[i], NULL, worker, &args[i]);
   }
 
   for (int i = 0; i < initial_args.all_client_num; i++) {
     pthread_join(tids[i], NULL);
+  }
+
+  // merge results
+  std::vector<uint32_t> merged_ops_list(args[0].ops_list->size());
+  std::vector<uint32_t, uint32_t> merged_lat_map;
+  for (int i = 0; i < initial_args.all_client_num; i ++) {
+    assert(args[i].ops_list->size() == merged_ops_list.size());
+    for (int j = 0; j < )
   }
 }

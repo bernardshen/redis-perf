@@ -1,7 +1,11 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
+#include <vector>
+#include <map>
+
 #include <stdint.h>
+#include <pthread.h>
 
 #define __OUT
 
@@ -33,6 +37,12 @@ typedef struct _ClientArgs {
   char wl_name[256];
   char redis_ip[256];
   uint32_t run_times_s;
+
+  // used for direct test
+  pthread_barrier_t * load_barrier;
+  pthread_barrier_t * trans_barrier;
+  std::vector<uint32_t> * ops_list;
+  std::map<uint32_t, uint32_t> * lat_map;
 } ClientArgs;
 
 static inline uint64_t diff_ts_us(const struct timeval* et,
