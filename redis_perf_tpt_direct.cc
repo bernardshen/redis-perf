@@ -165,6 +165,7 @@ void* worker(void* _args) {
   // sync to do trans
   printf("Client %d waiting sync\n", args->cid);
   pthread_barrier_wait(args->trans_barrier);
+  printf("Client %d start running\n", args->cid);
   gettimeofday(&st, NULL);
   while (true) {
     uint32_t idx = seq % trans_wl.num_ops;
