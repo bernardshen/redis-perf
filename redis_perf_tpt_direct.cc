@@ -160,8 +160,8 @@ void* worker(void* _args) {
   uint64_t tick_us = 500000;
   uint64_t lat_tick_us = tick_us * 8;
   uint32_t cur_tick = 0;
-  std::vector<uint32_t> * ops_list = args->ops_list;
-  std::map<uint32_t, uint32_t> * lat_map = args->lat_map;
+  std::vector<uint32_t>* ops_list = args->ops_list;
+  std::map<uint32_t, uint32_t>* lat_map = args->lat_map;
   // sync to do trans
   printf("Client %d waiting sync\n", args->cid);
   pthread_barrier_wait(args->trans_barrier);
@@ -201,8 +201,8 @@ void* worker(void* _args) {
       break;
   }
   json trans_res;
-  trans_res["ops_cont"] = json(ops_list);
-  trans_res["lat_map"] = json(lat_map);
+  trans_res["ops_cont"] = json(*ops_list);
+  trans_res["lat_map"] = json(*lat_map);
   printf("itemsize: %d\n", strlen(trans_res.dump().c_str()) / 1024);
   // save file to local
   char fname_buf[256];
@@ -222,7 +222,8 @@ ClientArgs initial_args = {
 int main(int argc, char** argv) {
   if (argc != 7) {
     printf(
-        "Usage: %s <client_st_id> <num_clients> <memcached_ip> <workload> <redis_ip> "
+        "Usage: %s <client_st_id> <num_clients> <memcached_ip> <workload> "
+        "<redis_ip> "
         "<run_time>\n",
         argv[0]);
     exit(1);
@@ -269,9 +270,25 @@ int main(int argc, char** argv) {
 
   // merge results
   std::vector<uint32_t> merged_ops_list(args[0].ops_list->size());
-  std::vector<uint32_t, uint32_t> merged_lat_map;
-  for (int i = 0; i < initial_args.all_client_num; i ++) {
+  std::map<uint32_t, uint32_t> merged_lat_map;
+  for (int i = 0; i < initial_args.all_client_num; i++) {
     assert(args[i].ops_list->size() == merged_ops_list.size());
-    for (int j = 0; j < )
+    for (int j = 0; j < args[i].ops_list->size(); j++) {
+      merged_ops_list[j] += (*args[i].ops_list)[j];
+    }
+
+    for (auto it = args[i].lat_map->begin(); it != args[i].lat_map->end();
+         it++) {
+      merged_lat_map[it->first] += it->second;
+    }
   }
+  json merged_res;
+  merged_res["ops_cont"] = json(merged_ops_list);
+  merged_res["lat_map"] = json(merged_lat_map);
+  // save file to local
+  char fname_buf[256];
+  sprintf(fname_buf, "results/merged-%d.json", initial_args.all_client_num);
+  FILE* f = fopen(fname_buf, "w");
+  assert(f != NULL);
+  fprintf(f, "%s", merged_res.dump().c_str());
 }
