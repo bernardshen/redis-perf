@@ -222,7 +222,7 @@ ClientArgs initial_args = {
 };
 
 int main(int argc, char** argv) {
-  if (argc != 6) {
+  if (argc != 7) {
     printf(
         "Usage: %s <client_st_id> <num_clients> <memcached_ip> <workload> <redis_ip> "
         "<run_time>\n",
