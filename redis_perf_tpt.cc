@@ -217,7 +217,7 @@ void* worker(void* _args) {
 
 ClientArgs initial_args = {
     .cid = 1,
-    .core = 0
+    .core = 0,
 };
 
 int main(int argc, char** argv) {
