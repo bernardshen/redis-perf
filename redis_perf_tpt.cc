@@ -217,6 +217,7 @@ void* worker(void* _args) {
 
 ClientArgs initial_args = {
     .cid = 1,
+    .all_client_num = 0,
     .core = 0,
 };
 
