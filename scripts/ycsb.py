@@ -2,6 +2,7 @@ from itertools import product
 import memcache
 import time
 import json
+import os
 
 from cluster_setting import *
 from cmd_manager import CMDManager
@@ -13,11 +14,13 @@ memcached_ip = cluster_ips[master_id]
 instance_ips = [cluster_ips[mn_id]]
 client_ips = [cluster_ips[client_ids[0]]]
 
-num_client_list = [4]
+num_client_list = [8, 16]
 workload_list = ['ycsbc']
 
 redis_work_dir = f'{EXP_HOME}/scripts'
 ULIMIT_CMD = "ulimit -n unlimited"
+
+all_res = {}
 for num_clients, wl in product(num_client_list, workload_list):
     # start redis-cluster
     mc = memcache.Client([memcached_ip])
@@ -26,8 +29,9 @@ for num_clients, wl in product(num_client_list, workload_list):
 
     # start instances
     print(f"Start Redis instances")
-    instance_prom = cmd_manager.execute_on_node(
-        mn_id, f"{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_server.sh {cluster_ips[mn_id]}")
+    cmd = f"{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_server.sh {cluster_ips[mn_id]}"
+    print(cmd)
+    instance_prom = cmd_manager.execute_on_node(mn_id, cmd)
     server_port = 7000
     initial_instance = f'{instance_ips[0]}:{server_port}'
 
@@ -98,6 +102,23 @@ for num_clients, wl in product(num_client_list, workload_list):
         lat_list += [item[0]] * item[1]
     lat_list.sort()
 
+    # record combined p99, p50
     combined_res['tpt'] = tpt / 20
     combined_res['p99'] = lat_list[int(len(lat_list) * 0.99)]
     combined_res['p50'] = lat_list[int(len(lat_list) * 0.50)]
+    all_res[num_clients] = combined_res
+
+    # record latency map
+    cur_res = {
+        'tpt': tpt / 20,
+        'lat_map': lat_map
+    }
+    if not os.path.exists('results'):
+        os.mkdir('results')
+    with open(f'results/{num_clients}.json', 'w') as f:
+        json.dump(cur_res, f)
+
+if not os.path.exists('results'):
+    os.mkdir('results')
+with open(f'results/ycsb.json', 'w') as f:
+    json.dump(all_res, f)
