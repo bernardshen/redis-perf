@@ -15,3 +15,9 @@
     make -j 8
     sudo make install
     ```
+- Modify `/etc/memcached.conf`
+  ```
+  -l 0.0.0.0
+  -I 128m
+  -m 2048
+  ```

@@ -13,8 +13,8 @@ memcached_ip = cluster_ips[master_id]
 instance_ips = [cluster_ips[mn_id]]
 client_ips = [cluster_ips[client_ids[0]]]
 
-num_client_list = [1, 2]
-workload_list = ['ycsbc', 'ycsba']
+num_client_list = [4]
+workload_list = ['ycsbc']
 
 redis_work_dir = f'{EXP_HOME}/scripts'
 ULIMIT_CMD = "ulimit -n unlimited"
@@ -27,7 +27,7 @@ for num_clients, wl in product(num_client_list, workload_list):
     # start instances
     print(f"Start Redis instances")
     instance_prom = cmd_manager.execute_on_node(
-        mn_id, f"{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_single.sh {cluster_ips[mn_id]}")
+        mn_id, f"{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_server.sh {cluster_ips[mn_id]}")
     server_port = 7000
     initial_instance = f'{instance_ips[0]}:{server_port}'
 
