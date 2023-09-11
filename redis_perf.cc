@@ -1,3 +1,5 @@
+// TODO: modify this, for elasticity test
+
 #include <sw/redis++/redis++.h>
 #include <iostream>
 

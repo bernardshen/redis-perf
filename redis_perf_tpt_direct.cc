@@ -1,4 +1,4 @@
-// For Throughput test
+// Directly connect to a Redis server
 
 #include <sw/redis++/redis++.h>
 #include <iostream>
