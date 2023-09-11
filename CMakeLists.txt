@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 17)
 add_executable(redis_perf redis_perf.cc memcached.cc)
 add_executable(redis_perf_tpt redis_perf_tpt.cc memcached.cc)
 
+add_compile_options(
+    "-g"
+)
+
 target_link_libraries(
     redis_perf
     redis++
