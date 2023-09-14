@@ -11,7 +11,7 @@ cmd_manager = CMDManager(cluster_ips)
 
 num_instance_controllers = 1
 memcached_ip = cluster_ips[master_id]
-instance_ips = [cluster_ips[mn_id]]
+instance_ips = [cluster_ips[cn_id]]
 client_ips = [cluster_ips[client_ids[0]]]
 
 num_client_list = [16, 32, 56, 64]
