@@ -29,9 +29,9 @@ for num_clients, wl in product(num_client_list, workload_list):
 
     # start instances
     print(f"Start Redis instances")
-    cmd = f"{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_server.sh {cluster_ips[mn_id]}"
+    cmd = f"{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_server.sh {cluster_ips[cn_id]}"
     print(cmd)
-    instance_prom = cmd_manager.execute_on_node(mn_id, cmd)
+    instance_prom = cmd_manager.execute_on_node(cn_id, cmd)
     server_port = 7000
     initial_instance = f'{instance_ips[0]}:{server_port}'
 
@@ -48,7 +48,7 @@ for num_clients, wl in product(num_client_list, workload_list):
     time.sleep(5)
     c_prom = cmd_manager.execute_on_node(
         client_ids[0], 
-        f'{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_client_tpt.sh 1 {num_clients} {wl} tcp://{cluster_ips[mn_id]}:7000 20'
+        f'{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_client_tpt.sh 1 {num_clients} {wl} tcp://{cluster_ips[cn_id]}:7000 20'
     )
 
     # sync ycsb load
