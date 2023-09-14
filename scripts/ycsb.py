@@ -14,13 +14,13 @@ memcached_ip = cluster_ips[master_id]
 instance_ips = [cluster_ips[mn_id]]
 client_ips = [cluster_ips[client_ids[0]]]
 
-num_client_list = [8, 16]
-workload_list = ['ycsbc']
+num_client_list = [16, 32, 56, 64]
+workload_list = ['ycsbc', 'ycsba']
 
 redis_work_dir = f'{EXP_HOME}/scripts'
 ULIMIT_CMD = "ulimit -n unlimited"
 
-all_res = {}
+all_res = {wl: {} for wl in workload_list}
 for num_clients, wl in product(num_client_list, workload_list):
     # start redis-cluster
     mc = memcache.Client([memcached_ip])
@@ -106,7 +106,7 @@ for num_clients, wl in product(num_client_list, workload_list):
     combined_res['tpt'] = tpt / 20
     combined_res['p99'] = lat_list[int(len(lat_list) * 0.99)]
     combined_res['p50'] = lat_list[int(len(lat_list) * 0.50)]
-    all_res[num_clients] = combined_res
+    all_res[wl][num_clients] = combined_res
 
     # record latency map
     cur_res = {
@@ -115,7 +115,7 @@ for num_clients, wl in product(num_client_list, workload_list):
     }
     if not os.path.exists('results'):
         os.mkdir('results')
-    with open(f'results/{num_clients}.json', 'w') as f:
+    with open(f'results/{wl}-{num_clients}.json', 'w') as f:
         json.dump(cur_res, f)
 
 if not os.path.exists('results'):
