@@ -28,8 +28,7 @@ with open(f'./{server_port}/redis.conf', 'w') as f:
     f.write(config_templ.format(server_port, server_port, my_server_ip))
 
 # start redis instances
-os.system(f'cd {server_port}; \
-          taskset -c {core_id} redis-server ./redis.conf; cd ..')
+os.system(f'cd {server_port}; redis-server ./redis.conf; cd ..')
 
 mc = memcache.Client([memcached_ip], debug=False)
 assert (mc != None)
