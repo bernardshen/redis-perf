@@ -22,29 +22,30 @@ ULIMIT_CMD = "ulimit -n unlimited"
 
 mc = memcache.Client([memcached_ip])
 assert (mc != None)
+mc.flush_all()
 
 all_res = {wl: {} for wl in workload_list}
 for wl in workload_list:
+    # start instances
+    print(f"Start Redis instances")
+    cmd = f"{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_server.sh {cluster_ips[cn_id]}"
+    print(cmd)
+    instance_prom = cmd_manager.execute_on_node(cn_id, cmd)
+    server_port = 7000
+    initial_instance = f'{instance_ips[0]}:{server_port}'
+
+    # start instance controller wait for instance controllers to reply
+    print("Wait Redis instance ready")
+    for i in range(num_instance_controllers):
+        ready_msg = f'redis-{i}-ready'
+        val = mc.get(ready_msg)
+        while val == None:
+            val = mc.get(ready_msg)
+        print(ready_msg)
+
     for num_clients in num_client_list:
         # start redis-cluster
         mc.flush_all()
-
-        # start instances
-        print(f"Start Redis instances")
-        cmd = f"{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_server.sh {cluster_ips[cn_id]}"
-        print(cmd)
-        instance_prom = cmd_manager.execute_on_node(cn_id, cmd)
-        server_port = 7000
-        initial_instance = f'{instance_ips[0]}:{server_port}'
-
-        # start instance controller wait for instance controllers to reply
-        print("Wait Redis instance ready")
-        for i in range(num_instance_controllers):
-            ready_msg = f'redis-{i}-ready'
-            val = mc.get(ready_msg)
-            while val == None:
-                val = mc.get(ready_msg)
-            print(ready_msg)
 
         # start clients
         time.sleep(5)
@@ -62,7 +63,7 @@ for wl in workload_list:
             val = mc.get(ready_msg)
             while val == None:
                 val = mc.get(ready_msg)
-            print(ready_msg)
+            # print(ready_msg)
         print("Notify Clients to load.")
         mc.set('all-client-ready-0', 1)  # clients start loading
 
@@ -72,7 +73,7 @@ for wl in workload_list:
             val = mc.get(ready_msg)
             while val == None:
                 val = mc.get(ready_msg)
-            print(ready_msg)
+            # print(ready_msg)
         mc.set('all-client-ready-1', 1)  # clients start executing trans
         print("Notify all clients start trans")
 
