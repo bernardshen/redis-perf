@@ -16,6 +16,8 @@
 using namespace sw::redis;
 using json = nlohmann::json;
 
+int g_need_load;
+
 static int stick_this_thread_to_core(int core_id) {
   int num_cores = sysconf(_SC_NPROCESSORS_CONF);
   if (core_id < 0 || core_id >= num_cores) {
@@ -138,7 +140,7 @@ void* worker(void* _args) {
   std::string dumb_value_str(dumb_value_char);
   printf("Client %d waiting syncing\n", args->cid);
   con_client.memcached_sync_ready(args->cid);
-  for (int i = 0; i < load_wl.num_ops; i++) {
+  for (int i = 0; g_need_load && i < load_wl.num_ops; i++) {
     uint64_t key_addr, val_addr;
     uint32_t key_size, val_size;
     uint8_t op;
@@ -224,10 +226,10 @@ ClientArgs initial_args = {
 };
 
 int main(int argc, char** argv) {
-  if (argc != 7) {
+  if (argc != 8) {
     printf(
-        "Usage: %s <client_st_id> <num_clients> <memcached_ip> <workload> <redis_ip> "
-        "<run_time>\n",
+        "Usage: %s <client_st_id> <num_clients> <memcached_ip> <workload> "
+        "<redis_ip> <run_time> <need_load>\n",
         argv[0]);
     exit(1);
   }
@@ -237,6 +239,7 @@ int main(int argc, char** argv) {
   strcpy(initial_args.wl_name, argv[4]);
   strcpy(initial_args.redis_ip, argv[5]);
   initial_args.run_times_s = atoi(argv[6]);
+  g_need_load = atoi(argv[7]);
 
   printf("st_cllient_id: %d\n", sid);
   printf("num_clients: %d\n", initial_args.all_client_num);

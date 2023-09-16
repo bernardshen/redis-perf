@@ -11,5 +11,6 @@ num_clients=$2
 workload=$3
 redis_ip=$4
 run_time=$5
+need_load=$6
 
-../build/redis_perf_tpt $st_client_id $num_clients $memcached_ip $workload $redis_ip $run_time
+../build/redis_perf_tpt $st_client_id $num_clients $memcached_ip $workload $redis_ip $run_time $need_load
