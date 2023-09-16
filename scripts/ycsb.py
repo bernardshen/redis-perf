@@ -20,12 +20,13 @@ workload_list = ['ycsba', 'ycsbb', 'ycsbc', 'ycsbd']
 redis_work_dir = f'{EXP_HOME}/scripts'
 ULIMIT_CMD = "ulimit -n unlimited"
 
+mc = memcache.Client([memcached_ip])
+assert (mc != None)
+
 all_res = {wl: {} for wl in workload_list}
 for wl in workload_list:
     for num_clients in num_client_list:
         # start redis-cluster
-        mc = memcache.Client([memcached_ip])
-        assert (mc != None)
         mc.flush_all()
 
         # start instances
@@ -87,8 +88,8 @@ for wl in workload_list:
         c_prom.join()
 
         # finishing experiment and exit!
-        mc.set('test-finish', 1)
-        instance_prom.join()
+        # mc.set('test-finish', 1)
+        # instance_prom.join()
 
         # parse results
         combined_res = {}
@@ -120,6 +121,10 @@ for wl in workload_list:
             os.mkdir('results')
         with open(f'results/{wl}-{num_clients}.json', 'w') as f:
             json.dump(cur_res, f)
+
+    mc.set('test-finish', 1)
+    instance_prom.join()
+    
 
 if not os.path.exists('results'):
     os.mkdir('results')
