@@ -44,6 +44,7 @@ for wl in workload_list:
         print(ready_msg)
 
     for num_clients in num_client_list:
+        print(f"Starting {num_clients} clients under {wl}")
         # start redis-cluster
         mc.flush_all()
 
