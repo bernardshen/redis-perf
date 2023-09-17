@@ -231,10 +231,13 @@ ClientArgs initial_args = {
     .core = 0,
 };
 
+char save_fname[256];
+
 int main(int argc, char** argv) {
-  if (argc != 5) {
-    printf("Usage: %s <memcached_ip> <workload> <redis_ip> <run_time>\n",
-           argv[0]);
+  if (argc != 6) {
+    printf(
+        "Usage: %s <memcached_ip> <workload> <redis_ip> <run_time> <fname>\n",
+        argv[0]);
     exit(1);
   }
   int sid = 1;
@@ -242,10 +245,12 @@ int main(int argc, char** argv) {
   strcpy(initial_args.wl_name, argv[2]);
   strcpy(initial_args.redis_ip, argv[3]);
   initial_args.run_times_s = atoi(argv[4]);
+  strcpy(save_fname, argv[5]);
   printf("memcached_ip: %s\n", initial_args.controller_ip);
   printf("workload: %s\n", initial_args.wl_name);
   printf("redis_ip: %s\n", initial_args.redis_ip);
   printf("running %d seconds\n", initial_args.run_times_s);
+  printf("save file: %s\n", save_fname);
 
   ClientArgs args[NUM_LOCAL_CLIENTS];
   pthread_t tids[NUM_LOCAL_CLIENTS];
@@ -285,8 +290,7 @@ int main(int argc, char** argv) {
   merged_res["ops_cont"] = json(merged_ops_list);
   merged_res["lat_map_cont"] = json(merged_lat_map_cont);
 
-  char fname_buf[256];
-  sprintf(fname_buf, "results/cont-merged-128.json");
+  sprintf(fname_buf, "results/%s", save_fname);
   FILE* f = fopen(fname_buf, "w");
   assert(f != NULL);
   fprintf(f, "%s", merged_res.dump().c_str());
