@@ -7,6 +7,10 @@ import subprocess
 from cluster_setting import *
 from cmd_manager import CMDManager
 
+FIRST_EXECUTE_TIME = 800
+SECOND_EXECUTE_TIME = 2000
+TOTAL_EXECUTE_TIME = 4800
+
 cmd_manager = CMDManager(cluster_ips)
 
 num_instance_controllers = 1
@@ -108,16 +112,15 @@ for p in [scale_port, shrink_port]:
     port_node_id[p] = node_id
     print(f'{p} {node_id}')
 
-# # execute
-# # start clients
-# time.sleep(10)
-# print("Starting clients")
-# wl = 'ycsbc'
-# c_prom = cmd_manager.execute_on_node(
-#     client_ids[0], 
-#     f'{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_client_tpt.sh 1 \
-#         {num_clients} {wl} tcp://{cluster_ips[cn_id]}:7000 3000'
-# )
+# execute
+# start clients
+time.sleep(10)
+print("Starting clients")
+c_prom = cmd_manager.execute_on_node(
+    client_ids[0], 
+    f'{ULIMIT_CMD} && cd {redis_work_dir} && \
+        ../build/redis_perf 10.10.1.2 {workload} tcp://10.10.1.1:7000 {TOTAL_EXECUTE_TIME} scale-vertical.json'
+)
 
 # sync ycsb load
 print("Wait all clients ready.")
@@ -141,7 +144,7 @@ mc.set('all-client-ready-1', 1)  # clients start executing trans
 print("Notify all clients start trans")
 
 # reshard all of slots to another node
-time.sleep(30)
+time.sleep(FIRST_EXECUTE_TIME)
 print("Start scaling")
 reshard_st = time.time()
 os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7000\
@@ -149,10 +152,11 @@ os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7000\
           --cluster-to {port_node_id[scale_port]}\
           --cluster-slots {16384} --cluster-yes > /dev/null 2>&1')
 reshard_et = time.time()
-print(f"Reshard takes {reshard_et - reshard_st} seconds")
+reshard_time = int(reshard_et - reshard_st)
+print(f"Reshard takes {reshard_time} seconds")
 
 # reshard half of slots back to one node
-time.sleep(30)
+time.sleep(SECOND_EXECUTE_TIME - reshard_time)
 print("Start shrinking")
 shrink_st = time.time()
 os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7000\
@@ -160,8 +164,22 @@ os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7000\
           --cluster-to {port_node_id[shrink_port]}\
           --cluster-slots {16384} --cluster-yes > /dev/null 2>&1')
 shrink_et = time.time()
-print(f"Shrink takes {shrink_et - shrink_st} seconds")
+shrink_time = shrink_et - shrink_st
+print(f"Shrink takes {shrink_time} seconds")
 
 # wait client finish
-# c_prom.join()
-# mc.set('test-finish', 1)
+c_prom.join()
+mc.set('test-finish', 1)
+
+print(f"Reshard Time: {reshard_time}")
+print(f"Shrink Time: {shrink_time}")
+
+timer_dict = {
+    "reshard_time": reshard_time,
+    "shrink_time": shrink_time
+}
+
+if not os.path.exists('./results'):
+    os.mkdir('results')
+with open('results/vertical_timer.json', 'w') as f:
+    json.dump(timer_dict, f)
