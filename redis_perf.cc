@@ -266,17 +266,17 @@ int main(int argc, char** argv) {
 
   // merge results
   assert(args[0].ops_list->size() == args[0].lat_map_cont->size());
-  std::vector<uin32_t> merged_ops_list(args[0].ops_list->size());
-  std::vector<std::unordered_map<uint32_t, uint32_t>> merged_lat_map_cont(
+  std::vector<uint32_t> merged_ops_list(args[0].ops_list->size());
+  std::vector<std::unordered_map<uint64_t, uint32_t>> merged_lat_map_cont(
       args[0].lat_map_cont->size());
   for (int i = 0; i < NUM_LOCAL_CLIENTS; i++) {
     for (int j = 0; j < args[i].ops_list->size(); j++) {
       merged_ops_list[j] += (*args[i].ops_list)[j];
 
-      std::unordered_map<uint32_t, uint32_t>* cur_lat_map =
-          &args[i].lat_map_cont[j];
+      std::unordered_map<uint64_t, uint32_t>* cur_lat_map =
+          &((*args[i].lat_map_cont)[j]);
       for (auto it = cur_lat_map->begin(); it != cur_lat_map->end(); it++) {
-        merged_lat_map_cont[it->first] += it->second;
+        merged_lat_map_cont[j][it->first] += it->second;
       }
     }
   }
