@@ -78,12 +78,12 @@ for p in server_ports:
 os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7001\
           --cluster-from {port_node_id[7001]}\
           --cluster-to {port_node_id[7000]}\
-          --cluster-slots {ip_slots[7001]} --cluster-yes')
+          --cluster-slots {ip_slots[7001]} --cluster-yes > /dev/null 2>&1')
 time.sleep(2)
 os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7002\
           --cluster-from {port_node_id[7002]}\
           --cluster-to {port_node_id[7000]}\
-          --cluster-slots {ip_slots[7002]} --cluster-yes')
+          --cluster-slots {ip_slots[7002]} --cluster-yes > /dev/null 2>&1')
 time.sleep(10)
 os.system(
     f'redis-cli --cluster del-node {cluster_ips[cn_id]}:7000 {port_node_id[7001]}')
@@ -111,8 +111,7 @@ print(f'{scale_port} {node_id}')
 # wl = 'ycsbc'
 # c_prom = cmd_manager.execute_on_node(
 #     client_ids[0], 
-#     f'{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_client_tpt.sh 1 \
-#         {num_clients} {wl} tcp://{cluster_ips[cn_id]}:7000 3000'
+#     f'{ULIMIT_CMD} && cd {redis_work_dir} && ../build/redis_perf 10.10.1.2 {wl}_small tcp://10.10.1.1:7000 3000 scale-horizontal.json'
 # )
 
 # sync ycsb load
@@ -143,7 +142,7 @@ reshard_st = time.time()
 os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7000\
           --cluster-from {port_node_id[7000]}\
           --cluster-to {port_node_id[scale_port]}\
-          --cluster-slots {16384//2} --cluster-yes')
+          --cluster-slots {16384//2} --cluster-yes > /dev/null 2>&1')
 reshard_et = time.time()
 print(f"Reshard takes {reshard_et - reshard_st} seconds")
 
@@ -154,8 +153,10 @@ shrink_st = time.time()
 os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7000\
           --cluster-from {port_node_id[scale_port]}\
           --cluster-to {port_node_id[7000]}\
-          --cluster-slots {16384//2} --cluster-yes')
+          --cluster-slots {16384//2} --cluster-yes > /dev/null 2>&1')
 shrink_et = time.time()
 print(f"Shrink takes {shrink_et - shrink_st} seconds")
 
 # wait client finish
+# c_prom.join()
+# mc.set('test-finish', 1)
