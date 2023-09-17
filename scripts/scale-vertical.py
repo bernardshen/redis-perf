@@ -119,26 +119,26 @@ for p in [scale_port, shrink_port]:
 #         {num_clients} {wl} tcp://{cluster_ips[cn_id]}:7000 3000'
 # )
 
-# # sync ycsb load
-# print("Wait all clients ready.")
-# for i in range(1, num_clients + 1):
-#     ready_msg = f'client-{i}-ready-0'
-#     val = mc.get(ready_msg)
-#     while val == None:
-#         val = mc.get(ready_msg)
-#     # print(ready_msg)
-# print("Notify Clients to load.")
-# mc.set('all-client-ready-0', 1)  # clients start loading
+# sync ycsb load
+print("Wait all clients ready.")
+for i in range(1, num_clients + 1):
+    ready_msg = f'client-{i}-ready-0'
+    val = mc.get(ready_msg)
+    while val == None:
+        val = mc.get(ready_msg)
+    # print(ready_msg)
+print("Notify Clients to load.")
+mc.set('all-client-ready-0', 1)  # clients start loading
 
-# # wait all clients load ready and sync their to execute trans
-# for i in range(1, num_clients + 1):
-#     ready_msg = f'client-{i}-ready-1'
-#     val = mc.get(ready_msg)
-#     while val == None:
-#         val = mc.get(ready_msg)
-#     # print(ready_msg)
-# mc.set('all-client-ready-1', 1)  # clients start executing trans
-# print("Notify all clients start trans")
+# wait all clients load ready and sync their to execute trans
+for i in range(1, num_clients + 1):
+    ready_msg = f'client-{i}-ready-1'
+    val = mc.get(ready_msg)
+    while val == None:
+        val = mc.get(ready_msg)
+    # print(ready_msg)
+mc.set('all-client-ready-1', 1)  # clients start executing trans
+print("Notify all clients start trans")
 
 # reshard all of slots to another node
 time.sleep(30)
@@ -147,12 +147,9 @@ reshard_st = time.time()
 os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7000\
           --cluster-from {port_node_id[7000]}\
           --cluster-to {port_node_id[scale_port]}\
-          --cluster-slots {16384} --cluster-yes')
+          --cluster-slots {16384} --cluster-yes > /dev/null 2>&1')
 reshard_et = time.time()
 print(f"Reshard takes {reshard_et - reshard_st} seconds")
-# promote the original node to a master
-os.system(f'redis-cli --cluster call {instance_ip}:7000\
-          SLAVEOF NO ONE')
 
 # reshard half of slots back to one node
 time.sleep(30)
@@ -161,7 +158,7 @@ shrink_st = time.time()
 os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7000\
           --cluster-from {port_node_id[scale_port]}\
           --cluster-to {port_node_id[shrink_port]}\
-          --cluster-slots {16384} --cluster-yes')
+          --cluster-slots {16384} --cluster-yes > /dev/null 2>&1')
 shrink_et = time.time()
 print(f"Shrink takes {shrink_et - shrink_st} seconds")
 
