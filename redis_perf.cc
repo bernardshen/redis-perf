@@ -209,19 +209,6 @@ void* worker(void* _args) {
     if (cur_tick == num_ticks)
       break;
   }
-  // json trans_res;
-  // trans_res["ops_cont"] = json(*ops_list);
-  // trans_res["lat_map_cont"] = json(*lat_map);
-  // printf("itemsize: %ld\n", strlen(trans_res.dump().c_str()) / 1024);
-  // con_client.memcached_put_result((void*)trans_res.dump().c_str(),
-  //                                 strlen(trans_res.dump().c_str()),
-  //                                 args->cid);
-  // // save file to local
-  // char fname_buf[256];
-  // sprintf(fname_buf, "results/worker-%d.json", args->cid);
-  // FILE* f = fopen(fname_buf, "w");
-  // assert(f != NULL);
-  // fprintf(f, "%s", trans_res.dump().c_str());
   return NULL;
 }
 
@@ -277,7 +264,9 @@ int main(int argc, char** argv) {
   for (int i = 0; i < NUM_LOCAL_CLIENTS; i++) {
     for (int j = 0; j < args[i].ops_list->size(); j++) {
       merged_ops_list[j] += (*args[i].ops_list)[j];
+    }
 
+    for (int j = 0; j < args[i].lat_map_cont->size(); i++) {
       std::unordered_map<uint64_t, uint32_t>* cur_lat_map =
           &((*args[i].lat_map_cont)[j]);
       for (auto it = cur_lat_map->begin(); it != cur_lat_map->end(); it++) {
