@@ -66,26 +66,26 @@ for i in server_ports:
 ip_slots = {}
 for p in server_ports:
     proc = subprocess.Popen(
-        f'redis-cli --cluster check {cluster_ips[mn_id]}:{p}\
-        | grep {cluster_ips[mn_id]}:{p}', stdout=subprocess.PIPE,
+        f'redis-cli --cluster check {cluster_ips[cn_id]}:{p}\
+        | grep {cluster_ips[cn_id]}:{p}', stdout=subprocess.PIPE,
         shell=True)
     proc.wait()
     l = proc.stdout.readline().decode().strip()
     num_slots = int(l.split(' ')[6])
     ip_slots[p] = num_slots
     print(f'{p} {num_slots}')
-os.system(f'redis-cli --cluster reshard {cluster_ips[mn_id]}:7001\
+os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7001\
           --cluster-from {port_node_id[7001]}\
           --cluster-to {port_node_id[7000]}\
           --cluster-slots {ip_slots[7001]} --cluster-yes')
 time.sleep(2)
-os.system(f'redis-cli --cluster reshard {cluster_ips[mn_id]}:7002\
+os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7002\
           --cluster-from {port_node_id[7002]}\
           --cluster-to {port_node_id[7000]}\
           --cluster-slots {ip_slots[7002]} --cluster-yes')
 time.sleep(10)
 os.system(
-    f'redis-cli --cluster del-node {cluster_ips[mn_id]}:7000 {port_node_id[7002]}')
+    f'redis-cli --cluster del-node {cluster_ips[cn_id]}:7000 {port_node_id[7002]}')
 
 # # execute
 # # start clients
@@ -124,7 +124,7 @@ os.system(
 time.sleep(30)
 print("Start scaling")
 reshard_st = time.time()
-os.system(f'redis-cli --cluster reshard {cluster_ips[mn_id]}:7000\
+os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7000\
           --cluster-from {port_node_id[7000]}\
           --cluster-to {port_node_id[7001]}\
           --cluster-slots {16384//2} --cluster-yes')
@@ -135,7 +135,7 @@ print(f"Reshard takes {reshard_et - reshard_st} seconds")
 time.sleep(30)
 print("Start shrinking")
 shrink_st = time.time()
-os.system(f'redis-cli --cluster reshard {cluster_ips[mn_id]}:7000\
+os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7000\
           --cluster-from {port_node_id[7000]}\
           --cluster-to {port_node_id[7001]}\
           --cluster-slots {16384//2} --cluster-yes')
