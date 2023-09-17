@@ -258,20 +258,23 @@ int main(int argc, char** argv) {
 
   // merge results
   std::vector<uint32_t> merged_ops_list(args[0].ops_list->size());
-  std::vector<std::unordered_map<uint64_t, uint32_t>> merged_lat_map_cont(
-      args[0].lat_map_cont->size());
   for (int i = 0; i < NUM_LOCAL_CLIENTS; i++) {
     for (int j = 0; j < args[i].ops_list->size(); j++) {
       merged_ops_list[j] += (*args[i].ops_list)[j];
     }
+  }
 
-    for (int j = 0; j < args[i].lat_map_cont->size(); i++) {
+  std::vector<std::unordered_map<uint64_t, uint32_t>> merged_lat_map_cont;
+  for (int j = 0; j < args[0].lat_map_cont->size(); j++) {
+    std::unordered_map<uint64_t, uint32_t> cur_merged_lat_map;
+    for (int i = 0; i < NUM_LOCAL_CLIENTS; i++) {
       std::unordered_map<uint64_t, uint32_t>* cur_lat_map =
           &((*args[i].lat_map_cont)[j]);
       for (auto it = cur_lat_map->begin(); it != cur_lat_map->end(); it++) {
-        merged_lat_map_cont[j][it->first] += it->second;
+        cur_merged_lat_map[it->first] += it->second;
       }
     }
+    merged_lat_map_cont.push_back(cur_merged_lat_map);
   }
 
   json merged_res;
