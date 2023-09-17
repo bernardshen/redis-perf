@@ -42,8 +42,11 @@ for i in range(num_instance_controllers):
     print(ready_msg)
 
 # create a redis cluster with the three nodes
+time.sleep(2)
+print("Creating Redis cluster")
 cmd = 'redis-cli --cluster create ' \
         + ' '.join(initial_nodes) + ' --cluster-yes'
+print(cmd)
 os.system(cmd)
 
 # reshard slots to 1 node
