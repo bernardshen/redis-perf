@@ -11,9 +11,9 @@
 #include "third_party/json.hpp"
 #include "utils.h"
 
-#define NUM_ALL_CLIENTS 512
-#define NUM_LOCAL_CLIENTS 256
-#define NUM_CORES 64
+#define NUM_ALL_CLIENTS 128
+#define NUM_LOCAL_CLIENTS 128
+#define NUM_CORES 32
 
 using namespace sw::redis;
 using json = nlohmann::json;
@@ -163,9 +163,10 @@ void* worker(void* _args) {
   uint64_t tick_us = 500000;
   uint64_t lat_tick_us = tick_us * 8;
   uint32_t cur_tick = 0;
-  std::vector<uint32_t> ops_list;
+  std::vector<uint32_t>* ops_list = args->ops_list;
   std::unordered_map<uint64_t, uint32_t> cur_lat_map;
-  std::vector<std::unordered_map<uint64_t, uint32_t>> lat_map;
+  std::vector<std::unordered_map<uint64_t, uint32_t>>* lat_map =
+      args->lat_map_cont;
   cur_lat_map.clear();
   // sync to do trans
   printf("Client %d waiting sync\n", args->cid);
@@ -198,9 +199,9 @@ void* worker(void* _args) {
     gettimeofday(&et, NULL);
     cur_lat_map[diff_ts_us(&et, &tst) / 10]++;
     if (diff_ts_us(&et, &st) > cur_tick * tick_us) {
-      ops_list.push_back(seq);
+      (*ops_list).push_back(seq);
       if (cur_tick % 8 == 0) {
-        lat_map.push_back(cur_lat_map);
+        (*lat_map).push_back(cur_lat_map);
         cur_lat_map.clear();
       }
       cur_tick++;
@@ -208,18 +209,19 @@ void* worker(void* _args) {
     if (cur_tick == num_ticks)
       break;
   }
-  json trans_res;
-  trans_res["ops_cont"] = json(ops_list);
-  trans_res["lat_map_cont"] = json(lat_map);
-  printf("itemsize: %ld\n", strlen(trans_res.dump().c_str()) / 1024);
-  con_client.memcached_put_result((void*)trans_res.dump().c_str(),
-                                  strlen(trans_res.dump().c_str()), args->cid);
-  // save file to local
-  char fname_buf[256];
-  sprintf(fname_buf, "results/worker-%d.json", args->cid);
-  FILE* f = fopen(fname_buf, "w");
-  assert(f != NULL);
-  fprintf(f, "%s", trans_res.dump().c_str());
+  // json trans_res;
+  // trans_res["ops_cont"] = json(*ops_list);
+  // trans_res["lat_map_cont"] = json(*lat_map);
+  // printf("itemsize: %ld\n", strlen(trans_res.dump().c_str()) / 1024);
+  // con_client.memcached_put_result((void*)trans_res.dump().c_str(),
+  //                                 strlen(trans_res.dump().c_str()),
+  //                                 args->cid);
+  // // save file to local
+  // char fname_buf[256];
+  // sprintf(fname_buf, "results/worker-%d.json", args->cid);
+  // FILE* f = fopen(fname_buf, "w");
+  // assert(f != NULL);
+  // fprintf(f, "%s", trans_res.dump().c_str());
   return NULL;
 }
 
@@ -230,18 +232,16 @@ ClientArgs initial_args = {
 };
 
 int main(int argc, char** argv) {
-  if (argc != 6) {
-    printf(
-        "Usage: %s <client_st_id> <memcached_ip> <workload> <redis_ip> "
-        "<run_time>\n",
-        argv[0]);
+  if (argc != 5) {
+    printf("Usage: %s <memcached_ip> <workload> <redis_ip> <run_time>\n",
+           argv[0]);
     exit(1);
   }
-  int sid = atoi(argv[1]);
-  strcpy(initial_args.controller_ip, argv[2]);
-  strcpy(initial_args.wl_name, argv[3]);
-  strcpy(initial_args.redis_ip, argv[4]);
-  initial_args.run_times_s = atoi(argv[5]);
+  int sid = 1;
+  strcpy(initial_args.controller_ip, argv[1]);
+  strcpy(initial_args.wl_name, argv[2]);
+  strcpy(initial_args.redis_ip, argv[3]);
+  initial_args.run_times_s = atoi(argv[4]);
   printf("memcached_ip: %s\n", initial_args.controller_ip);
   printf("workload: %s\n", initial_args.wl_name);
   printf("redis_ip: %s\n", initial_args.redis_ip);
@@ -253,6 +253,9 @@ int main(int argc, char** argv) {
     memcpy(&args[i], &initial_args, sizeof(ClientArgs));
     args[i].cid = i + sid;
     args[i].core = i % NUM_CORES;
+    args[i].ops_list = new std::vector<uint32_t>();
+    args[i].lat_map_cont =
+        new std::vector<std::unordered_map<uint64_t, uint32_t>>();
 
     pthread_create(&tids[i], NULL, worker, &args[i]);
   }
@@ -260,4 +263,31 @@ int main(int argc, char** argv) {
   for (int i = 0; i < NUM_LOCAL_CLIENTS; i++) {
     pthread_join(tids[i], NULL);
   }
+
+  // merge results
+  assert(args[0].ops_list->size() == args[0].lat_map_cont->size());
+  std::vector<uin32_t> merged_ops_list(args[0].ops_list->size());
+  std::vector<std::unordered_map<uint32_t, uint32_t>> merged_lat_map_cont(
+      args[0].lat_map_cont->size());
+  for (int i = 0; i < NUM_LOCAL_CLIENTS; i++) {
+    for (int j = 0; j < args[i].ops_list->size(); j++) {
+      merged_ops_list[j] += (*args[i].ops_list)[j];
+
+      std::unordered_map<uint32_t, uint32_t>* cur_lat_map =
+          &args[i].lat_map_cont[j];
+      for (auto it = cur_lat_map->begin(); it != cur_lat_map->end(); it++) {
+        merged_lat_map_cont[it->first] += it->second;
+      }
+    }
+  }
+
+  json merged_res;
+  merged_res["ops_cont"] = json(merged_ops_list);
+  merged_res["lat_map_cont"] = json(merged_lat_map_cont);
+
+  char fname_buf[256];
+  sprintf(fname_buf, "results/cont-merged-128.json");
+  FILE* f = fopen(fname_buf, "w");
+  assert(f != NULL);
+  fprintf(f, "%s", merged_res.dump().c_str());
 }

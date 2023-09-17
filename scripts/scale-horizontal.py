@@ -13,6 +13,7 @@ num_instance_controllers = 1
 memcached_ip = cluster_ips[master_id]
 instance_ips = [cluster_ips[cn_id]]
 client_ips = [cluster_ips[client_ids[0]]]
+num_clients = 128
 
 redis_work_dir = f'{EXP_HOME}/scripts'
 ULIMIT_CMD = "ulimit -n unlimited"
@@ -107,7 +108,6 @@ print(f'{scale_port} {node_id}')
 # # start clients
 # time.sleep(10)
 # print("Starting clients")
-# num_clients=128
 # wl = 'ycsbc'
 # c_prom = cmd_manager.execute_on_node(
 #     client_ids[0], 
@@ -115,26 +115,26 @@ print(f'{scale_port} {node_id}')
 #         {num_clients} {wl} tcp://{cluster_ips[cn_id]}:7000 3000'
 # )
 
-# # sync ycsb load
-# print("Wait all clients ready.")
-# for i in range(1, num_clients + 1):
-#     ready_msg = f'client-{i}-ready-0'
-#     val = mc.get(ready_msg)
-#     while val == None:
-#         val = mc.get(ready_msg)
-#     # print(ready_msg)
-# print("Notify Clients to load.")
-# mc.set('all-client-ready-0', 1)  # clients start loading
+# sync ycsb load
+print("Wait all clients ready.")
+for i in range(1, num_clients + 1):
+    ready_msg = f'client-{i}-ready-0'
+    val = mc.get(ready_msg)
+    while val == None:
+        val = mc.get(ready_msg)
+    # print(ready_msg)
+print("Notify Clients to load.")
+mc.set('all-client-ready-0', 1)  # clients start loading
 
-# # wait all clients load ready and sync their to execute trans
-# for i in range(1, num_clients + 1):
-#     ready_msg = f'client-{i}-ready-1'
-#     val = mc.get(ready_msg)
-#     while val == None:
-#         val = mc.get(ready_msg)
-#     # print(ready_msg)
-# mc.set('all-client-ready-1', 1)  # clients start executing trans
-# print("Notify all clients start trans")
+# wait all clients load ready and sync their to execute trans
+for i in range(1, num_clients + 1):
+    ready_msg = f'client-{i}-ready-1'
+    val = mc.get(ready_msg)
+    while val == None:
+        val = mc.get(ready_msg)
+    # print(ready_msg)
+mc.set('all-client-ready-1', 1)  # clients start executing trans
+print("Notify all clients start trans")
 
 # reshard half of slots to another node
 time.sleep(30)

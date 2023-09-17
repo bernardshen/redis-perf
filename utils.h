@@ -1,11 +1,11 @@
 #ifndef _UTILS_H_
 #define _UTILS_H_
 
-#include <vector>
 #include <map>
+#include <vector>
 
-#include <stdint.h>
 #include <pthread.h>
+#include <stdint.h>
 
 #define __OUT
 
@@ -39,10 +39,13 @@ typedef struct _ClientArgs {
   uint32_t run_times_s;
 
   // used for direct test
-  pthread_barrier_t * load_barrier;
-  pthread_barrier_t * trans_barrier;
-  std::vector<uint32_t> * ops_list;
-  std::map<uint32_t, uint32_t> * lat_map;
+  pthread_barrier_t* load_barrier;
+  pthread_barrier_t* trans_barrier;
+  std::vector<uint32_t>* ops_list;
+  std::map<uint32_t, uint32_t>* lat_map;
+
+  // used for cont
+  std::vector<std::unordered_map<uint64_t, uint32_t>>* lat_map_cont;
 } ClientArgs;
 
 static inline uint64_t diff_ts_us(const struct timeval* et,
