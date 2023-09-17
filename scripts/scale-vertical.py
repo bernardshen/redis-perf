@@ -13,7 +13,9 @@ num_instance_controllers = 1
 memcached_ip = cluster_ips[master_id]
 instance_ips = [cluster_ips[cn_id]]
 client_ips = [cluster_ips[client_ids[0]]]
+
 num_clients = 128
+workload = 'ycsbc_small'
 
 redis_work_dir = f'{EXP_HOME}/scripts'
 ULIMIT_CMD = "ulimit -n unlimited"
@@ -102,8 +104,8 @@ for p in [scale_port, shrink_port]:
     proc.wait()
     output = proc.stdout.read().decode().strip()
     node_id = output.split(' ')[0]
-    node_id_port[node_id] = scale_port
-    port_node_id[scale_port] = node_id
+    node_id_port[node_id] = p
+    port_node_id[p] = node_id
     print(f'{p} {node_id}')
 
 # # execute
