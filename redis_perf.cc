@@ -290,6 +290,7 @@ int main(int argc, char** argv) {
   merged_res["ops_cont"] = json(merged_ops_list);
   merged_res["lat_map_cont"] = json(merged_lat_map_cont);
 
+  char fname_buf[256];
   sprintf(fname_buf, "results/%s", save_fname);
   FILE* f = fopen(fname_buf, "w");
   assert(f != NULL);
