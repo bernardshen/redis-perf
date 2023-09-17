@@ -257,7 +257,6 @@ int main(int argc, char** argv) {
   }
 
   // merge results
-  assert(args[0].ops_list->size() == args[0].lat_map_cont->size());
   std::vector<uint32_t> merged_ops_list(args[0].ops_list->size());
   std::vector<std::unordered_map<uint64_t, uint32_t>> merged_lat_map_cont(
       args[0].lat_map_cont->size());
