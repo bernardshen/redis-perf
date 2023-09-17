@@ -27,6 +27,7 @@ initial_ports = [7000, 7001, 7002]
 server_ports = [7000, 7001, 7002]
 initial_nodes = [f'{instance_ip}:{i}' for i in initial_ports]
 scale_port = 7003
+shrink_port = 7004
 print(f"Start a Redis Cluter with 2 instances")
 
 # start a cluster with 3 nodes
@@ -91,18 +92,19 @@ time.sleep(10)
 os.system(
     f'redis-cli --cluster del-node {cluster_ips[cn_id]}:7000 {port_node_id[7002]}')
 
-# add a empty master to the cluster
-os.system(f"redis-cli --cluster add-node {instance_ip}:{scale_port} {instance_ip}:7000")
-time.sleep(5)
-proc = subprocess.Popen(f'redis-cli -h {instance_ip} -p {scale_port} \
-                        cluster nodes | grep myself',
-                        stdout=subprocess.PIPE, shell=True)
-proc.wait()
-output = proc.stdout.read().decode().strip()
-node_id = output.split(' ')[0]
-node_id_port[node_id] = scale_port
-port_node_id[scale_port] = node_id
-print(f'{scale_port} {node_id}')
+# add two empty masters to the cluster
+for p in [scale_port, shrink_port]:
+    os.system(f"redis-cli --cluster add-node {instance_ip}:{p} {instance_ip}:7000")
+    time.sleep(5)
+    proc = subprocess.Popen(f'redis-cli -h {instance_ip} -p {p} \
+                            cluster nodes | grep myself',
+                            stdout=subprocess.PIPE, shell=True)
+    proc.wait()
+    output = proc.stdout.read().decode().strip()
+    node_id = output.split(' ')[0]
+    node_id_port[node_id] = scale_port
+    port_node_id[scale_port] = node_id
+    print(f'{p} {node_id}')
 
 # # execute
 # # start clients
@@ -156,7 +158,7 @@ print("Start shrinking")
 shrink_st = time.time()
 os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7000\
           --cluster-from {port_node_id[scale_port]}\
-          --cluster-to {port_node_id[7000]}\
+          --cluster-to {port_node_id[shrink_port]}\
           --cluster-slots {16384} --cluster-yes')
 shrink_et = time.time()
 print(f"Shrink takes {shrink_et - shrink_st} seconds")
