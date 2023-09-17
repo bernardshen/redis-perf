@@ -31,7 +31,7 @@ shrink_port = 7004
 print(f"Start a Redis Cluter with 2 instances")
 
 # start a cluster with 3 nodes
-cmd = f"{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_cluster_nodes.sh 4 {cluster_ips[cn_id]}"
+cmd = f"{ULIMIT_CMD} && cd {redis_work_dir} && ./run_redis_cluster_nodes.sh 5 {cluster_ips[cn_id]}"
 print(cmd)
 instance_prom = cmd_manager.execute_on_node(cn_id, cmd)
 
@@ -79,12 +79,12 @@ for p in server_ports:
 os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7001\
           --cluster-from {port_node_id[7001]}\
           --cluster-to {port_node_id[7000]}\
-          --cluster-slots {ip_slots[7001]} --cluster-yes')
+          --cluster-slots {ip_slots[7001]} --cluster-yes > /dev/null 2>&1')
 time.sleep(2)
 os.system(f'redis-cli --cluster reshard {cluster_ips[cn_id]}:7002\
           --cluster-from {port_node_id[7002]}\
           --cluster-to {port_node_id[7000]}\
-          --cluster-slots {ip_slots[7002]} --cluster-yes')
+          --cluster-slots {ip_slots[7002]} --cluster-yes > /dev/null 2>&1')
 time.sleep(10)
 os.system(
     f'redis-cli --cluster del-node {cluster_ips[cn_id]}:7000 {port_node_id[7001]}')
