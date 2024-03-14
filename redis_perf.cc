@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
   ClientArgs args[num_threads];
   pthread_t tids[num_threads];
   for (int i = 0; i < num_threads; i++) {
-    memset(&args[i], 0, sizeof(ClientArgs));
+    memcpy(&args[i], &initial_args, sizeof(ClientArgs));
     args[i].is_cluster = (strcmp("cluster", mode) == 0);
     args[i].cid = sid * num_threads + i + 1;
     args[i].core = i % num_cores;
@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
   merged_res["cont_lat_map"] = json(merged_cont_lat_map);
 
   char fname_buf[256];
-  sprintf(fname_buf, "results/%s", save_fname);
+  sprintf(fname_buf, "results/%s.json", save_fname);
   FILE *f = fopen(fname_buf, "w");
   assert(f != NULL);
   printd(L_INFO, "Output file size: %dMB",
