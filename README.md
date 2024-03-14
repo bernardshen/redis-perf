@@ -21,3 +21,12 @@
   -I 128m
   -m 2048
   ```
+# Output Format
+```json
+{
+    "cont_tpt": [num_ops, num_ops, num_ops, ...], // record every 500ms
+    "cont_lat_map": [[[lat_us, time], [lat_us, time], ...], 
+                     [[lat_us, time], [lat_us, time], ...],
+                     ...], //record every 500ms
+}
+```
