@@ -14,7 +14,7 @@ instance_controller_id = 0
 memcached_ip = sys.argv[2]
 my_server_ip = sys.argv[3]
 server_port_st = 7000
-num_cores = 64
+num_cores = 10
 
 server_ports = [server_port_st + i for i in range(num_servers)]
 all_server_ports = [server_port_st + i for i in range(64)]

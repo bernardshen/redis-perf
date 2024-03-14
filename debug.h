@@ -9,7 +9,8 @@
 #define STR_L_INFO "[INFO]"
 #define STR_L_ERROR "[ERROR]"
 
-#define VERBO L_INFO
+#define VERBO L_DEBUG
+#define _DEBUG
 
 #include <stdio.h>
 

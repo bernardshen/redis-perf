@@ -1,7 +1,7 @@
 #!/bin/bash
 
 fid="1E-hyuwWGugDidX12ZgkRBNzAvLEeoNjv"
-python download_gdrive.py $fid "$1.tgz"
+python3 download_gdrive.py $fid "$1.tgz"
 if [ ! -d ycsb ]; then
     mkdir ycsb
 fi

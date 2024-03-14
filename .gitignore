@@ -1,6 +1,7 @@
 scripts/install
 scripts/__pycache__
 scripts/results
+scripts/7*
 build/
 workloads/ycsb
 .vscode

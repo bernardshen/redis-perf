@@ -10,6 +10,7 @@
 #include "third_party/json.hpp"
 #include "utils.h"
 #include "workload.h"
+#include "redis_adapter.h"
 
 #define TICK_US (500000)
 
@@ -19,10 +20,11 @@ using json = nlohmann::json;
 void *worker(void *_args) {
   ClientArgs *args = (ClientArgs *)_args;
   DMCMemcachedClient con_client(args->controller_ip);
+  MyRedisAdapter * redis;
   if (args->is_cluster) {
-    auto redis = RedisCluster(args->redis_ip);
+    redis = new RedisClusterAdapter(args->redis_ip);
   } else {
-    auto redis = Redis(args->redis_ip);
+    redis = new RedisAdapter(args->redis_ip);
   }
 
   int ret = stick_this_thread_to_core(args->core);
@@ -42,55 +44,39 @@ void *worker(void *_args) {
   std::string dumb_value_str(dumb_value_char);
 
   struct timeval st, et, tst;
-  uint32_t seq = 0;
-  uint32_t num_ticks = ((uint64_t)args->run_times_s * 1000000) / TICK_US;
-  uint32_t cur_tick = 0;
-  std::vector<uint32_t> *cont_tpt = args->cont_tpt;
   std::unordered_map<uint64_t, uint32_t> cur_lat_map;
-  std::vector<std::unordered_map<uint64_t, uint32_t>> *cont_lat_map =
-      args->cont_lat_map;
   cur_lat_map.clear();
   // sync to do trans
   printd(L_DEBUG, "Client %d waiting sync", args->cid);
   con_client.memcached_sync_ready(args->cid);
   gettimeofday(&st, NULL);
-  while (cur_tick < num_ticks) {
-    uint32_t idx = seq % load_wl.num_ops;
+  for (int i = 0; i < load_wl.num_ops; i ++) {
     uint64_t key_addr, val_addr;
     uint32_t key_size, val_size;
     uint8_t op;
-    get_workload_kv(&load_wl, idx, &key_addr, &val_addr, &key_size, &val_size,
+    get_workload_kv(&load_wl, i, &key_addr, &val_addr, &key_size, &val_size,
                     &op);
     std::string key((char *)key_addr);
     std::string val = dumb_value_str.substr(0, 256 - key.size());
     gettimeofday(&tst, NULL);
   trans_retry:
     try {
-      if (op == GET) {
-        auto val = redis.get(key);
-      } else {
-        redis.set(key, val);
-      }
+      redis->set(key, val);
     } catch (const Error &e) {
       printd(L_ERROR, "Client %d failed %s, reconnect and retry", args->cid,
              key.c_str());
       if (args->is_cluster) {
-        redis = RedisCluster(args->redis_ip);
+        redis = new RedisClusterAdapter(args->redis_ip);
       } else {
-        redis = Redis(args->redis_ip);
+        redis = new RedisAdapter(args->redis_ip);
       }
       goto trans_retry;
     }
-    seq++;
     gettimeofday(&et, NULL);
     cur_lat_map[diff_ts_us(&et, &tst)]++;
-    if (diff_ts_us(&et, &st) > cur_tick * TICK_US) {
-      (*cont_tpt).push_back(seq);
-      (*cont_lat_map).push_back(cur_lat_map);
-      cur_lat_map.clear();
-      cur_tick++;
-    }
   }
+  args->cont_tpt->push_back(load_wl.num_ops);
+  args->cont_lat_map->push_back(cur_lat_map);
 
   return NULL;
 }
@@ -106,6 +92,10 @@ int main(int argc, char **argv) {
            argv[0]);
     exit(1);
   }
+
+  ClientArgs initial_args;
+  memset(&initial_args, 0, sizeof(initial_args));
+
   int sid = atoi(argv[1]);
   int num_threads = atoi(argv[2]);
   int all_thread_num = atoi(argv[3]);
@@ -136,8 +126,8 @@ int main(int argc, char **argv) {
 
   ClientArgs args[num_threads];
   pthread_t tids[num_threads];
-  pthread_barrier_init() for (int i = 0; i < num_threads; i++) {
-    memset(&args[i], 0, sizeof(ClientArgs));
+  for (int i = 0; i < num_threads; i++) {
+    memcpy(&args[i], &initial_args, sizeof(initial_args));
     args[i].is_cluster = (strcmp("cluster", mode) == 0);
     args[i].cid = sid * num_threads + i + 1;
     args[i].core = i % num_cores;
@@ -154,19 +144,19 @@ int main(int argc, char **argv) {
   }
 
   // merge results
-  std::vector<uint32_t> merged_cont_tpt(args[0].ops_list->size());
+  std::vector<uint32_t> merged_cont_tpt(args[0].cont_tpt->size());
   for (int i = 0; i < num_threads; i++) {
-    for (int j = 0; j < args[i].ops_list->size(); j++) {
-      merged_cont_tpt[j] += (*args[i].ops_list)[j];
+    for (int j = 0; j < args[i].cont_tpt->size(); j++) {
+      merged_cont_tpt[j] += (*args[i].cont_tpt)[j];
     }
   }
 
   std::vector<std::unordered_map<uint64_t, uint32_t>> merged_cont_lat_map;
-  for (int j = 0; j < args[0].lat_map_cont->size(); j++) {
+  for (int j = 0; j < args[0].cont_lat_map->size(); j++) {
     std::unordered_map<uint64_t, uint32_t> cur_merged_lat_map;
     for (int i = 0; i < num_threads; i++) {
       std::unordered_map<uint64_t, uint32_t> *cur_lat_map =
-          &((*args[i].lat_map_cont)[j]);
+          &((*args[i].cont_lat_map)[j]);
       for (auto it = cur_lat_map->begin(); it != cur_lat_map->end(); it++) {
         cur_merged_lat_map[it->first] += it->second;
       }

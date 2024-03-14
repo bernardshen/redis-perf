@@ -8,13 +8,11 @@
 #include <pthread.h>
 #include <stdint.h>
 
+#include <sw/redis++/redis++.h>
+
 #define __OUT
 
 enum KVOP { SET, GET };
-
-int load_workload_ycsb(char *workload_name, int num_load_ops,
-                       uint32_t server_id, uint32_t all_client_num,
-                       __OUT Workload *load_wl, __OUT Workload *trans_wl);
 
 typedef struct _ClientArgs {
   uint32_t cid;

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <sw/redis++/redis++.h>
+#include <variant>
 
 #include <assert.h>
 #include <stdlib.h>
@@ -10,6 +11,7 @@
 #include "third_party/json.hpp"
 #include "utils.h"
 #include "workload.h"
+#include "redis_adapter.h"  
 
 #define TICK_US (500000)
 
@@ -19,10 +21,11 @@ using json = nlohmann::json;
 void *worker(void *_args) {
   ClientArgs *args = (ClientArgs *)_args;
   DMCMemcachedClient con_client(args->controller_ip);
+  MyRedisAdapter * redis;
   if (args->is_cluster) {
-    auto redis = RedisCluster(args->redis_ip);
+    redis = new RedisClusterAdapter(args->redis_ip);
   } else {
-    auto redis = Redis(args->redis_ip);
+    redis = new RedisAdapter(args->redis_ip);
   }
 
   int ret = stick_this_thread_to_core(args->core);
@@ -33,9 +36,8 @@ void *worker(void *_args) {
     printd(L_INFO, "Running client %d on core %d", args->cid, args->core);
 
   Workload trans_wl;
-  ret = load_workload_ycsb_trans(args->wl_name, -1, args->cid,
+  load_workload_ycsb_trans(args->wl_name, -1, args->cid,
                                  args->all_client_num, &trans_wl);
-  assert(ret == 0);
 
   char dumb_value_char[256] = {0};
   memset(dumb_value_char, 'a', 254);
@@ -67,17 +69,17 @@ void *worker(void *_args) {
   trans_retry:
     try {
       if (op == GET) {
-        auto val = redis.get(key);
+        auto val = redis->get(key);
       } else {
-        redis.set(key, val);
+        redis->set(key, val);
       }
     } catch (const Error &e) {
       printd(L_ERROR, "Client %d failed %s, reconnect and retry", args->cid,
              key.c_str());
       if (args->is_cluster) {
-        redis = RedisCluster(args->redis_ip);
+        redis = new RedisClusterAdapter(args->redis_ip);
       } else {
-        redis = Redis(args->redis_ip);
+        redis = new RedisAdapter(args->redis_ip);
       }
       goto trans_retry;
     }
@@ -105,6 +107,9 @@ int main(int argc, char **argv) {
            argv[0]);
     exit(1);
   }
+  ClientArgs initial_args;
+  memset(&initial_args, 0, sizeof(ClientArgs));
+
   int sid = atoi(argv[1]);
   int num_threads = atoi(argv[2]);
   int all_thread_num = atoi(argv[3]);
@@ -135,8 +140,8 @@ int main(int argc, char **argv) {
 
   ClientArgs args[num_threads];
   pthread_t tids[num_threads];
-  pthread_barrier_init() for (int i = 0; i < num_threads; i++) {
-    memset(&args[i], 0, sizeof(ClientArgs));
+  for (int i = 0; i < num_threads; i++) {
+    memcpy(&args[i], &initial_args, sizeof(ClientArgs));
     args[i].is_cluster = (strcmp("cluster", mode) == 0);
     args[i].cid = sid * num_threads + i + 1;
     args[i].core = i % num_cores;
@@ -155,19 +160,19 @@ int main(int argc, char **argv) {
   }
 
   // merge results
-  std::vector<uint32_t> merged_cont_tpt(args[0].ops_list->size());
+  std::vector<uint32_t> merged_cont_tpt(args[0].cont_tpt->size());
   for (int i = 0; i < num_threads; i++) {
-    for (int j = 0; j < args[i].ops_list->size(); j++) {
-      merged_cont_tpt[j] += (*args[i].ops_list)[j];
+    for (int j = 0; j < args[i].cont_tpt->size(); j++) {
+      merged_cont_tpt[j] += (*args[i].cont_tpt)[j];
     }
   }
 
   std::vector<std::unordered_map<uint64_t, uint32_t>> merged_cont_lat_map;
-  for (int j = 0; j < args[0].lat_map_cont->size(); j++) {
+  for (int j = 0; j < args[0].cont_lat_map->size(); j++) {
     std::unordered_map<uint64_t, uint32_t> cur_merged_lat_map;
     for (int i = 0; i < num_threads; i++) {
       std::unordered_map<uint64_t, uint32_t> *cur_lat_map =
-          &((*args[i].lat_map_cont)[j]);
+          &((*args[i].cont_lat_map)[j]);
       for (auto it = cur_lat_map->begin(); it != cur_lat_map->end(); it++) {
         cur_merged_lat_map[it->first] += it->second;
       }
@@ -180,7 +185,7 @@ int main(int argc, char **argv) {
   merged_res["cont_lat_map"] = json(merged_cont_lat_map);
 
   char fname_buf[256];
-  sprintf(fname_buf, "results/%s", save_fname);
+  sprintf(fname_buf, "results/%s.json", save_fname);
   FILE *f = fopen(fname_buf, "w");
   assert(f != NULL);
   printd(L_INFO, "Output file size: %dMB",
