@@ -36,8 +36,14 @@ void *worker(void *_args) {
     printd(L_INFO, "Running client %d on core %d", args->cid, args->core);
 
   Workload trans_wl;
-  load_workload_ycsb_trans(args->wl_name, -1, args->cid, args->all_client_num,
-                           &trans_wl);
+  if (memcmp(args->wl_name, "ycsb", strlen("ycsb")) == 0) {
+    load_workload_ycsb_trans(args->wl_name, -1, args->cid, args->all_client_num,
+                             &trans_wl);
+  } else {
+    assert(memcmp(args->wl_name, "twitter", strlen("twitter")) == 0);
+    load_workload_twitter_trans(args->wl_name, -1, args->cid,
+                                args->all_client_num, &trans_wl);
+  }
 
   char dumb_value_char[256] = {0};
   memset(dumb_value_char, 'a', 255);
