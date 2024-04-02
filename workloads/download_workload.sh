@@ -31,7 +31,7 @@ if [ "$wl" == "twitter" ]; then
     mv ./cluster1.sort.zst twitter
     rm ./cluster1.sort
 
-    # decompress cluster1 (transient)
+    # decompress cluster5 (transient)
     zstd -d ./cluster5.sort.zst
     head ./cluster5.sort -n 50000000 > twitter/twitter-transient
     mv ./cluster5.sort.zst twitter
