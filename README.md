@@ -22,6 +22,8 @@
   -m 2048
   ```
 # Usage
+We provide a script for downloading Twitter workloads in `workloads/download_workloads.sh`. Execute `cd workloads && ./download_workloads.sh twitter` to download and setup the execution directories for the Twitter workloads. You may at leat 1TB disk space to download and decompress these workloads.
+
 We support executing client threads on multiple nodes. Different nodes are synchronized through memcached with a controller. We currently support two modes of executions:
 - Separate data loading and workload execution
     - Load data: 
