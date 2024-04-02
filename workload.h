@@ -3,13 +3,16 @@
 
 #include "utils.h"
 
+#define _KEY_SIZE (128)
+#define _VAL_SIZE (128)
+
 typedef struct _Workload {
   void *key_buf;
   void *val_buf;
   uint32_t *key_size_list;
   uint32_t *val_size_list;
   uint8_t *op_list;
-  uint32_t num_ops;
+  uint64_t num_ops;
 } Workload;
 
 static void load_ycsb_single(char *wl_name, int num_load_ops,
@@ -36,21 +39,21 @@ static void load_ycsb_single(char *wl_name, int num_load_ops,
     wl->num_ops = wl_list.size();
   else
     wl->num_ops = num_load_ops;
-  wl->key_buf = malloc(128 * wl->num_ops);
-  wl->val_buf = malloc(120 * wl->num_ops);
+  wl->key_buf = malloc(_KEY_SIZE * wl->num_ops);
+  wl->val_buf = malloc(_VAL_SIZE * wl->num_ops);
   wl->key_size_list = (uint32_t *)malloc(sizeof(uint32_t) * wl->num_ops);
   wl->val_size_list = (uint32_t *)malloc(sizeof(uint32_t) * wl->num_ops);
   wl->op_list = (uint8_t *)malloc(sizeof(uint8_t) * wl->num_ops);
-  memset(wl->key_buf, 0, 128 * wl->num_ops);
-  memset(wl->val_buf, 0, 120 * wl->num_ops);
+  memset(wl->key_buf, 0, _KEY_SIZE * wl->num_ops);
+  memset(wl->val_buf, 0, _VAL_SIZE * wl->num_ops);
 
   printf("Client %d loading %ld ops\n", server_id, wl_list.size());
   char ops_buf[64];
-  char key_buf[64];
-  for (int i = 0; i < wl->num_ops; i++) {
+  char key_buf[_KEY_SIZE];
+  for (uint64_t i = 0; i < wl->num_ops; i++) {
     sscanf(wl_list[i].c_str(), "%s %s", ops_buf, key_buf);
-    memcpy((void *)((uint64_t)wl->key_buf + i * 128), key_buf, 128);
-    memcpy((void *)((uint64_t)wl->val_buf + i * 120), &i, sizeof(int));
+    memcpy((void *)((uint64_t)wl->key_buf + i * _KEY_SIZE), key_buf, _KEY_SIZE);
+    memcpy((void *)((uint64_t)wl->val_buf + i * _VAL_SIZE), &i, sizeof(int));
     wl->key_size_list[i] = strlen(key_buf);
     wl->val_size_list[i] = sizeof(int);
     if (strcmp("READ", ops_buf) == 0) {
@@ -95,8 +98,8 @@ get_workload_kv(Workload *wl, uint32_t idx, __OUT uint64_t *key_addr,
                 __OUT uint64_t *val_addr, __OUT uint32_t *key_size,
                 __OUT uint32_t *val_size, __OUT uint8_t *op) {
   idx = idx % wl->num_ops;
-  *key_addr = ((uint64_t)wl->key_buf + idx * 128);
-  *val_addr = ((uint64_t)wl->val_buf + idx * 120);
+  *key_addr = ((uint64_t)wl->key_buf + idx * _KEY_SIZE);
+  *val_addr = ((uint64_t)wl->val_buf + idx * _VAL_SIZE);
   *key_size = wl->key_size_list[idx];
   *val_size = wl->val_size_list[idx];
   *op = wl->op_list[idx];

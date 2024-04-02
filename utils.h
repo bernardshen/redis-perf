@@ -11,6 +11,7 @@
 #include <sw/redis++/redis++.h>
 
 #define __OUT
+#define _KV_SIZE (256)
 
 enum KVOP { SET, GET };
 

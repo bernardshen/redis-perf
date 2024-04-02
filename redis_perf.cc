@@ -7,10 +7,10 @@
 
 #include "debug.h"
 #include "memcached.h"
+#include "redis_adapter.h"
 #include "third_party/json.hpp"
 #include "utils.h"
 #include "workload.h"
-#include "redis_adapter.h"
 
 #define TICK_US (500000)
 
@@ -20,7 +20,7 @@ using json = nlohmann::json;
 void *worker(void *_args) {
   ClientArgs *args = (ClientArgs *)_args;
   DMCMemcachedClient con_client(args->controller_ip);
-  MyRedisAdapter * redis;
+  MyRedisAdapter *redis;
   if (args->is_cluster) {
     redis = new RedisClusterAdapter(args->redis_ip);
   } else {
@@ -36,23 +36,23 @@ void *worker(void *_args) {
 
   Workload load_wl, trans_wl;
   load_workload_ycsb(args->wl_name, -1, args->cid, args->all_client_num,
-                           &load_wl, &trans_wl);
+                     &load_wl, &trans_wl);
 
   // ready to run workload
   // sync to load ycsb dataset
   char dumb_value_char[256] = {0};
-  memset(dumb_value_char, 'a', 254);
+  memset(dumb_value_char, 'a', 255);
   std::string dumb_value_str(dumb_value_char);
   printd(L_DEBUG, "Client %d waiting syncing", args->cid);
   con_client.memcached_sync_ready(args->cid);
-  for (int i = 0; i < load_wl.num_ops; i++) {
+  for (uint64_t i = 0; i < load_wl.num_ops; i++) {
     uint64_t key_addr, val_addr;
     uint32_t key_size, val_size;
     uint8_t op;
     get_workload_kv(&load_wl, i, &key_addr, &val_addr, &key_size, &val_size,
                     &op);
     std::string key((char *)key_addr);
-    std::string val = dumb_value_str.substr(0, 256 - key.size());
+    std::string val = dumb_value_str.substr(0, _KV_SIZE - key.size());
   set_retry:
     try {
       redis->set(key, val);
@@ -84,7 +84,7 @@ void *worker(void *_args) {
     get_workload_kv(&trans_wl, idx, &key_addr, &val_addr, &key_size, &val_size,
                     &op);
     std::string key((char *)key_addr);
-    std::string val = dumb_value_str.substr(0, 256 - key.size());
+    std::string val = dumb_value_str.substr(0, _KV_SIZE - key.size());
     gettimeofday(&tst, NULL);
   trans_retry:
     try {
