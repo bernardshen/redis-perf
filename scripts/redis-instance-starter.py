@@ -6,13 +6,13 @@ import argparse
 
 server_port = 7000
 core_id = 0
-num_nodes = 0
+num_servers = 0
 
 
 def SIGINT_handler(sig, frame):
-    global num_nodes
+    global num_servers
     print('Cleaning up before existing...')
-    for i in range(num_nodes):
+    for i in range(num_servers):
         if os.path.exists(f'./{server_port + i}/pid'):
             pid = int(open(f'./{server_port + i}/pid', 'r').read())
             os.system(f'sudo kill -9 {pid}')
@@ -55,8 +55,17 @@ if args.mode == 'cluster' and args.num_servers == None:
     print(f"Usage: {sys.argv[0]} -m cluster -n <server_num> -i <Node IP>")
     assert (0)
 
+if args.mode == 'cluster':
+    num_servers = args.num_servers
+else:
+    num_servers = 1
+
 # TODO: currently only support single instance
 assert (args.mode == 'single')
 
 if args.mode == 'single':
     create_single_instance(args)
+
+# wait for SIGINT
+while True:
+    sleep(5)

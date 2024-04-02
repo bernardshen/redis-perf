@@ -70,9 +70,9 @@ cd .. # -> third_party
 cd .. # -> install
 
 # install oh-my-zsh
-if [ ! -d '~/.oh-my-zsh' ]; then
-  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-fi
-echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/local/lib" >> ~/.zshrc
-echo "ulimit -n unlimited" >> ~/.zshrc
-conda init zsh
+#if [ ! -d '~/.oh-my-zsh' ]; then
+#  sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+#fi
+#echo "export LD_LIBRARY_PATH=\$LD_LIBRARY_PATH:/usr/local/lib" >> ~/.zshrc
+#echo "ulimit -n unlimited" >> ~/.zshrc
+#conda init zsh

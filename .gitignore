@@ -4,4 +4,5 @@ scripts/results
 scripts/7*
 build/
 workloads/ycsb
+workloads/twitter
 .vscode

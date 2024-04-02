@@ -98,10 +98,10 @@ static void load_workload_twitter_trans(char *wl_name, int num_load_ops,
                                         uint32_t all_client_num,
                                         __OUT Workload *wl) {
   char wl_fname[128];
-  sprintf(wl_fname, "../workloads/twitter/%s", workload_name);
+  sprintf(wl_fname, "../workloads/twitter/%s", wl_name);
   FILE *f = fopen(wl_fname, "r");
   assert(f != NULL);
-  printd(L_INFO, "client %d loading %s", server_id, workload_name);
+  printd(L_INFO, "client %d loading %s", server_id, wl_name);
 
   std::vector<std::string> wl_list;
   char buf[2048];
@@ -112,13 +112,15 @@ static void load_workload_twitter_trans(char *wl_name, int num_load_ops,
   char keybuf[4 * _KEY_SIZE];
   char opbuf[64];
   int ttl;
+  uint32_t cnt = 0;
   while (fgets(buf, 2048, f) == buf) {
     if (buf[0] == '\n')
       continue;
     sscanf(buf, "%d %s %d %d %d %s %d", &ts, keybuf, &key_size, &val_size, &cid,
            opbuf, &ttl);
-    if ((cid % all_client_num) + 1 == server_id)
+    if ((cnt % all_client_num) + 1 == server_id)
       wl_list.emplace_back(buf);
+    cnt ++;
   }
 
   if (num_load_ops == -1)
