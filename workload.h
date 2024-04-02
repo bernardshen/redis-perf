@@ -120,7 +120,7 @@ static void load_workload_twitter_trans(char *wl_name, int num_load_ops,
            opbuf, &ttl);
     if ((cnt % all_client_num) + 1 == server_id)
       wl_list.emplace_back(buf);
-    cnt ++;
+    cnt++;
   }
 
   if (num_load_ops == -1)
@@ -136,8 +136,8 @@ static void load_workload_twitter_trans(char *wl_name, int num_load_ops,
 
   printf("Client %d loading %ld ops\n", server_id, wl_list.size());
   for (uint64_t i = 0; i < wl->num_ops; i++) {
-    sscanf(wl_list[i].c_str(), "%d %s %d %d %d %s %d", &ts, keybuf, &key_size,
-           &val_size, &cid, opbuf, &ttl);
+    sscanf(wl_list[i].c_str(), "%d,%[^,],%d,%d,%d,%[^,],%d", &ts, keybuf,
+           &key_size, &val_size, &cid, opbuf, &ttl);
     keybuf[_KEY_SIZE - 1] = 0;
     memcpy((void *)((uint64_t)wl->key_buf + i * _KEY_SIZE), keybuf, _KEY_SIZE);
     memcpy((void *)((uint64_t)wl->val_buf + i * _VAL_SIZE), &i, sizeof(int));

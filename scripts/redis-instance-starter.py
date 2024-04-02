@@ -17,6 +17,7 @@ def SIGINT_handler(sig, frame):
             pid = int(open(f'./{server_port + i}/pid', 'r').read())
             os.system(f'sudo kill -9 {pid}')
         os.system(f'rm -rf ./{server_port + i}')
+    exit(0)
 
 
 signal.signal(signal.SIGINT, SIGINT_handler)
@@ -68,4 +69,4 @@ if args.mode == 'single':
 
 # wait for SIGINT
 while True:
-    sleep(5)
+    time.sleep(5)

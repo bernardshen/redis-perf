@@ -35,6 +35,7 @@ void *worker(void *_args) {
   else
     printd(L_INFO, "Running client %d on core %d", args->cid, args->core);
 
+  bool is_twitter = false;
   Workload trans_wl;
   if (memcmp(args->wl_name, "ycsb", strlen("ycsb")) == 0) {
     load_workload_ycsb_trans(args->wl_name, -1, args->cid, args->all_client_num,
@@ -43,6 +44,7 @@ void *worker(void *_args) {
     assert(memcmp(args->wl_name, "twitter", strlen("twitter")) == 0);
     load_workload_twitter_trans(args->wl_name, -1, args->cid,
                                 args->all_client_num, &trans_wl);
+    is_twitter = true;
   }
 
   char dumb_value_char[256] = {0};
@@ -75,7 +77,14 @@ void *worker(void *_args) {
   trans_retry:
     try {
       if (op == GET) {
-        auto val = redis->get(key);
+        auto tmp_val = redis->get(key);
+        if (tmp_val) {
+          // printd(L_DEBUG, "val = %s", tmp_val.value().c_str());
+        } else {
+          // printd(L_DEBUG, "add a new key %s", key.c_str());
+          assert(is_twitter);
+          redis->set(key, val);
+        }
       } else {
         redis->set(key, val);
       }
