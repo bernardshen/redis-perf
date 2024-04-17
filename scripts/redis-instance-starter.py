@@ -23,15 +23,33 @@ def SIGINT_handler(sig, frame):
 signal.signal(signal.SIGINT, SIGINT_handler)
 
 
+def cleanup_port(port):
+    if os.path.exists(f'./{port}'):
+        if os.path.exists(f'./{port}/pid'):
+            pid = int(open(f'./{port}/pid', 'r').read())
+            os.system(f'sudo kill -9 {pid}')
+        os.system(f'rm -rf ./{port}')
+    os.mkdir(f'./{port}')
+
+
+def create_multiple_instances(args):
+    my_server_ip = args.ip
+    for i in range(args.num_servers):
+        port = server_port + i
+        # clear old settings
+        cleanup_port(port)
+        # construct configurations
+        config_templ = open('redis-server.conf.templ', 'r').read()
+        with open(f'./{port}/redis.conf', 'w') as f:
+            f.write(config_templ.format(port, port, my_server_ip))
+
+        os.system(f'cd {port}; redis-server ./redis.conf; cd ..')
+
+
 def create_single_instance(args):
     my_server_ip = args.ip
     # clear old settings
-    if os.path.exists(f'./{server_port}'):
-        if os.path.exists(f'./{server_port}/pid'):
-            pid = int(open(f'./{server_port}/pid', 'r').read())
-            os.system(f'sudo kill -9 {pid}')
-        os.system(f'rm -rf ./{server_port}')
-    os.mkdir(f'./{server_port}')
+    cleanup_port(server_port)
 
     # construct configurations
     config_templ = open('redis-server.conf.templ', 'r').read()
@@ -44,7 +62,7 @@ def create_single_instance(args):
 parser = argparse.ArgumentParser(
     description="Start Redis server instances in cluster and single mode")
 parser.add_argument('-m', '--mode', type=str, required=True,
-                    help="start in cluster mode or single instance mode: <cluster | single>.", choices=['cluster', 'single'])
+                    help="start in cluster mode or single instance mode: <cluster | single>.", choices=['cluster', 'single', 'multi'])
 parser.add_argument('-n', '--num-servers', type=int, required=False,
                     help="The number of Redis servers in cluster mode.", dest='num_servers')
 parser.add_argument('-i', '--ip', type=str, required=True,
@@ -56,16 +74,18 @@ if args.mode == 'cluster' and args.num_servers == None:
     print(f"Usage: {sys.argv[0]} -m cluster -n <server_num> -i <Node IP>")
     assert (0)
 
-if args.mode == 'cluster':
+if args.mode == 'cluster' or args.mode == 'multi':
     num_servers = args.num_servers
 else:
     num_servers = 1
 
 # TODO: currently only support single instance
-assert (args.mode == 'single')
+assert (args.mode == 'single' or args.mode == 'multi')
 
 if args.mode == 'single':
     create_single_instance(args)
+if args.mode == 'multi':
+    create_multiple_instances(args)
 
 # wait for SIGINT
 while True:

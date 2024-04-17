@@ -22,10 +22,14 @@ void *worker(void *_args) {
   ClientArgs *args = (ClientArgs *)_args;
   DMCMemcachedClient con_client(args->controller_ip);
   MyRedisAdapter *redis;
-  if (args->is_cluster) {
+  if (args->mode == MOD_CLUSTER) {
     redis = new RedisClusterAdapter(args->redis_ip);
-  } else {
+  } else if (args->mode == MOD_SINGLE) {
     redis = new RedisAdapter(args->redis_ip);
+  } else {
+    assert(args->mode == MOD_DMC_CLUSTER);
+    redis = new DMCClusterAdapter(args->dmc_cluster_ips,
+                                  args->num_dmc_cluster_total_servers);
   }
 
   int ret = stick_this_thread_to_core(args->core);
@@ -35,8 +39,8 @@ void *worker(void *_args) {
   else
     printd(L_INFO, "Running client %d on core %d", args->cid, args->core);
 
-  bool is_twitter = (memcmp(args.wl_name, "twitter", strlen("twitter")) == 0);
-  bool is_ycsbd = (memcmp(args.wl_name, "ycsbd", strlen("ycsbd")) == 0);
+  bool is_twitter = (memcmp(args->wl_name, "twitter", strlen("twitter")) == 0);
+  bool is_ycsbd = (memcmp(args->wl_name, "ycsbd", strlen("ycsbd")) == 0);
   Workload trans_wl;
   if (memcmp(args->wl_name, "ycsb", strlen("ycsb")) == 0) {
     load_workload_ycsb_trans(args->wl_name, -1, args->cid, args->all_client_num,
@@ -91,10 +95,13 @@ void *worker(void *_args) {
     } catch (const Error &e) {
       printd(L_ERROR, "Client %d failed %s, reconnect and retry", args->cid,
              key.c_str());
-      if (args->is_cluster) {
+      if (args->mode == MOD_CLUSTER) {
         redis = new RedisClusterAdapter(args->redis_ip);
-      } else {
+      } else if (args->mode == MOD_SINGLE) {
         redis = new RedisAdapter(args->redis_ip);
+      } else {
+        redis = new DMCClusterAdapter(args->dmc_cluster_ips,
+                                      args->num_dmc_cluster_total_servers);
       }
       goto trans_retry;
     }
@@ -134,9 +141,23 @@ int main(int argc, char **argv) {
   initial_args.run_times_s = atoi(argv[7]);
   strcpy(save_fname, argv[8]);
   strcpy(mode, argv[9]);
-  if (strcmp("cluster", mode) != 0 && strcmp("single", mode) != 0) {
-    printd(L_ERROR, "mode can be either [cluster] or [single]");
+  if (strcmp("cluster", mode) != 0 && strcmp("single", mode) != 0 &&
+      strcmp("dmc_cluster", mode) != 0) {
+    printd(L_ERROR,
+           "mode can be either [cluster] or [single] or [dmc_cluster]");
     return 1;
+  }
+
+  if (strcmp("dmc_cluster", mode) == 0) {
+    load_dmc_cluster_config("../dmc_cluster_config.json", &initial_args);
+    DMCClusterAdapter::update_num_servers(
+        initial_args.num_dmc_cluster_initial_servers);
+    initial_args.mode = MOD_DMC_CLUSTER;
+  } else if (strcmp("cluster", mode) == 0) {
+    initial_args.mode = MOD_CLUSTER;
+  } else {
+    assert(strcmp("single", mode) == 0);
+    initial_args.mode = MOD_SINGLE;
   }
 
   long num_cores = sysconf(_SC_NPROCESSORS_ONLN);
@@ -149,7 +170,7 @@ int main(int argc, char **argv) {
   printd(L_INFO, "redis_ip: %s", initial_args.redis_ip);
   printd(L_INFO, "running %d seconds", initial_args.run_times_s);
   printd(L_INFO, "save to file: %s", save_fname);
-  printd(L_INFO, "num_cores: %d", num_cores);
+  printd(L_INFO, "num_cores: %ld", num_cores);
   printd(L_INFO, "mode: %s", mode);
   printd(L_INFO, "=========================================================");
 
@@ -157,7 +178,6 @@ int main(int argc, char **argv) {
   pthread_t tids[num_threads];
   for (int i = 0; i < num_threads; i++) {
     memcpy(&args[i], &initial_args, sizeof(ClientArgs));
-    args[i].is_cluster = (strcmp("cluster", mode) == 0);
     args[i].cid = sid * num_threads + i + 1;
     args[i].core = i % num_cores;
     args[i].all_client_num = all_thread_num;
@@ -195,15 +215,20 @@ int main(int argc, char **argv) {
     merged_cont_lat_map.push_back(cur_merged_lat_map);
   }
 
+  if (initial_args.mode == MOD_DMC_CLUSTER) {
+    printf("Access vector: ");
+    DMCClusterAdapter::print_access_vector();
+  }
+
   json merged_res;
   merged_res["cont_tpt"] = json(merged_cont_tpt);
   merged_res["cont_lat_map"] = json(merged_cont_lat_map);
 
-  char fname_buf[256];
+  char fname_buf[512];
   sprintf(fname_buf, "results/%s.json", save_fname);
   FILE *f = fopen(fname_buf, "w");
   assert(f != NULL);
-  printd(L_INFO, "Output file size: %dMB",
+  printd(L_INFO, "Output file size: %ldMB",
          merged_res.dump().size() / 1024 / 1024);
   fprintf(f, "%s", merged_res.dump().c_str());
 }

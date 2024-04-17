@@ -15,7 +15,7 @@ typedef struct _Workload {
   uint64_t num_ops;
 } Workload;
 
-static void load_ycsb_single(char *wl_name, int num_load_ops,
+static void load_ycsb_single(const char *wl_name, int num_load_ops,
                              uint32_t server_id, uint32_t all_client_num,
                              __OUT Workload *wl) {
   char wl_fname[128];
