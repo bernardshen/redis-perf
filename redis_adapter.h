@@ -5,7 +5,7 @@
 #include <boost/crc.hpp>
 #include <sw/redis++/redis++.h>
 
-// #define DMC_CLUSTER_STATISTICS
+#define DMC_CLUSTER_STATISTICS
 
 using namespace sw::redis;
 
@@ -82,12 +82,13 @@ public:
   }
 
   static void update_num_servers(int new_num_servers) {
+    printd(L_INFO, "scale to %d servers", new_num_servers);
     num_alive_servers_.store(new_num_servers, std::memory_order_release);
   }
 
   static void print_access_vector() {
 #ifdef DMC_CLUSTER_STATISTICS
-    for (int i = 0; i < num_alive_servers_; i++) {
+    for (int i = 0; i < 32; i++) {
       printf("%d ", access_vector_[i].load());
     }
     printf("\n");

@@ -20,6 +20,7 @@
 
 enum KVOP { SET, GET };
 enum REDIS_PERF_MODE { MOD_SINGLE, MOD_CLUSTER, MOD_DMC_CLUSTER };
+enum REDIS_PERF_EXP { EXP_NORMAL, EXP_ELASTICITY };
 
 typedef struct _ClientArgs {
   uint32_t cid;
@@ -28,6 +29,7 @@ typedef struct _ClientArgs {
   uint32_t core;
 
   int mode;
+  int exp;
 
   char controller_ip[256];
   char wl_name[256];

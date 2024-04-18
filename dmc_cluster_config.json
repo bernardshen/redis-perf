@@ -5,6 +5,6 @@
         "tcp://10.10.1.2:7002",
         "tcp://10.10.1.2:7003"
     ],
-    "num_initial_servers": 4,
+    "num_initial_servers": 2,
     "num_scale_servers": 4
 }

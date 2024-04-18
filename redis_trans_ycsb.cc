@@ -86,7 +86,8 @@ void *worker(void *_args) {
           // printd(L_DEBUG, "val = %s", tmp_val.value().c_str());
         } else {
           // printd(L_DEBUG, "add a new key %s", key.c_str());
-          assert(is_twitter || is_ycsbd);
+          // TODO: enable this check after testing on redis
+          // assert(is_twitter || is_ycsbd);
           redis->set(key, val);
         }
       } else {
@@ -120,12 +121,13 @@ void *worker(void *_args) {
 
 char save_fname[256];
 char mode[256];
+char experiment[256];
 
 int main(int argc, char **argv) {
-  if (argc != 10) {
+  if (argc != 11) {
     printd(L_ERROR,
            "Usage: %s <node_id> <num_threads> <all_thread_num> <memcached_ip> "
-           "<workload> <redis_ip> <run_time> <fname> <mode>",
+           "<workload> <redis_ip> <run_time> <fname> <mode> <experiment>",
            argv[0]);
     exit(1);
   }
@@ -147,6 +149,12 @@ int main(int argc, char **argv) {
            "mode can be either [cluster] or [single] or [dmc_cluster]");
     return 1;
   }
+  strcpy(experiment, argv[10]);
+  if (strcmp("normal", experiment) != 0 &&
+      strcmp("elasticity", experiment) != 0) {
+    printd(L_ERROR, "experiment can be either [normal] or [elasticity]");
+    return 1;
+  }
 
   if (strcmp("dmc_cluster", mode) == 0) {
     load_dmc_cluster_config("../dmc_cluster_config.json", &initial_args);
@@ -158,6 +166,12 @@ int main(int argc, char **argv) {
   } else {
     assert(strcmp("single", mode) == 0);
     initial_args.mode = MOD_SINGLE;
+  }
+  if (strcmp("normal", experiment) == 0) {
+    initial_args.exp = EXP_NORMAL;
+  } else {
+    assert(strcmp("elasticity", experiment) == 0);
+    initial_args.exp = EXP_ELASTICITY;
   }
 
   long num_cores = sysconf(_SC_NPROCESSORS_ONLN);
@@ -189,6 +203,18 @@ int main(int argc, char **argv) {
   }
 
   // wait for load barrier
+
+  // wait for scale up and down
+  if (initial_args.mode == MOD_DMC_CLUSTER &&
+      initial_args.exp == EXP_ELASTICITY) {
+    DMCMemcachedClient con_client(args->controller_ip);
+    con_client.memcached_wait("dmc-scale-0");
+    DMCClusterAdapter::update_num_servers(
+        initial_args.num_dmc_cluster_scale_servers);
+    con_client.memcached_wait("dmc-scale-1");
+    DMCClusterAdapter::update_num_servers(
+        initial_args.num_dmc_cluster_initial_servers);
+  }
 
   for (int i = 0; i < num_threads; i++) {
     pthread_join(tids[i], NULL);
