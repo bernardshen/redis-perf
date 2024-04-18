@@ -70,4 +70,5 @@ We support executing client threads on multiple nodes. Different nodes are synch
 # TODO
 - [ ] Working on `redis-instance-starter.py` to start a single redis server instance or a redis cluster with multiple nodes  
     - [x] Single server mode
-    - [ ] Cluster mode
+    - [x] Cluster mode with more than 3 nodes
+    - [ ] Cluster mode with less than 3 nodes

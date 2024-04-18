@@ -4,6 +4,8 @@ import sys
 import signal
 import argparse
 
+import redis_utils
+
 server_port = 7000
 core_id = 0
 num_servers = 0
@@ -12,24 +14,12 @@ num_servers = 0
 def SIGINT_handler(sig, frame):
     global num_servers
     print('Cleaning up before existing...')
-    for i in range(num_servers):
-        if os.path.exists(f'./{server_port + i}/pid'):
-            pid = int(open(f'./{server_port + i}/pid', 'r').read())
-            os.system(f'sudo kill -9 {pid}')
-        os.system(f'rm -rf ./{server_port + i}')
+    server_nodes = [server_port + i for i in range(num_servers)]
+    redis_utils.cleanup_servers(server_nodes)
     exit(0)
 
 
 signal.signal(signal.SIGINT, SIGINT_handler)
-
-
-def cleanup_port(port):
-    if os.path.exists(f'./{port}'):
-        if os.path.exists(f'./{port}/pid'):
-            pid = int(open(f'./{port}/pid', 'r').read())
-            os.system(f'sudo kill -9 {pid}')
-        os.system(f'rm -rf ./{port}')
-    os.mkdir(f'./{port}')
 
 
 def create_multiple_instances(args):
@@ -37,26 +27,30 @@ def create_multiple_instances(args):
     for i in range(args.num_servers):
         port = server_port + i
         # clear old settings
-        cleanup_port(port)
+        redis_utils.cleanup_servers([port], mkdir=True)
         # construct configurations
-        config_templ = open('redis-server.conf.templ', 'r').read()
-        with open(f'./{port}/redis.conf', 'w') as f:
-            f.write(config_templ.format(port, port, my_server_ip))
-
-        os.system(f'cd {port}; redis-server ./redis.conf; cd ..')
+        redis_utils.create_config('redis-server.conf.templ', [port], my_server_ip)
+        redis_utils.start_instances([port])
 
 
 def create_single_instance(args):
     my_server_ip = args.ip
     # clear old settings
-    cleanup_port(server_port)
-
+    redis_utils.cleanup_servers([server_port], mkdir=True)
     # construct configurations
-    config_templ = open('redis-server.conf.templ', 'r').read()
-    with open(f'./{server_port}/redis.conf', 'w') as f:
-        f.write(config_templ.format(server_port, server_port, my_server_ip))
+    redis_utils.create_config('redis-server.conf.templ', [server_port], my_server_ip)
+    redis_utils.start_instances([server_port])
 
-    os.system(f'cd {server_port}; redis-server ./redis.conf; cd ..')
+def create_cluster(args):
+    my_server_ip = args.ip
+    server_ports = [server_port + i for i in range(args.num_servers)]
+    server_ips = [f'{my_server_ip}:{p}' for p in server_ports]
+    # clear old settings
+    redis_utils.cleanup_servers(server_ports, mkdir=True)
+    redis_utils.create_config('redis-large.conf.templ', server_ports, my_server_ip)
+    redis_utils.start_instances(server_ports)
+    print(f"Creating a Redis cluster with {len(server_ports)} nodes")
+    redis_utils.create_cluster(server_ips)
 
 
 parser = argparse.ArgumentParser(
@@ -79,14 +73,13 @@ if args.mode == 'cluster' or args.mode == 'multi':
 else:
     num_servers = 1
 
-# TODO: currently only support single instance
-assert (args.mode == 'single' or args.mode == 'multi')
-
 if args.mode == 'single':
     create_single_instance(args)
 if args.mode == 'multi':
     create_multiple_instances(args)
 if args.mode == 'cluster':
+    # TODO: currently only support clusters with more than 3 nodes
+    assert(num_servers >= 3)
     create_cluster(args)
 
 # wait for SIGINT
