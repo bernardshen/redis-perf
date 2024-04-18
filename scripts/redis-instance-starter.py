@@ -86,6 +86,8 @@ if args.mode == 'single':
     create_single_instance(args)
 if args.mode == 'multi':
     create_multiple_instances(args)
+if args.mode == 'cluster':
+    create_cluster(args)
 
 # wait for SIGINT
 while True:

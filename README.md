@@ -41,11 +41,21 @@ We support executing client threads on multiple nodes. Different nodes are synch
 - End-to-end testing (load data and execute the workload):
     1. `python3 scripts/ycsb_load_and_trans.py <memcached-ip> <num-clients>`. The `<num-clients>` field should be the total number of client threads.
     2. On another client node: `cd build && ./redis_perf <node-id> <num-local-threads> <num-total-threads> <memcached-ip> <workload> <redis-ip> <execution-time> <output-fname> <mode>`. The `<workload>` should be in `[ycsba, ycsbb, ycsbc, ycsbd]` and The `<execution-time>` controls how long each thread iterates with the workload. The `<mode>` field can either be `cluster`, `single`, or `dmc_cluster`. Note that this program will automatically read the workload file in `../workloads/ycsb`, hence must be executed in the `build` directory. An output will be written to `build/results` as a json file.
+- Redis elasticity test:
+    - Horizontal Scaling
+        0. In `scripts/redis-cluster-scale-horizontal.py`, modify the two variables to control the execution time `seconds_before_scale` and `seconds_before_shrink`.
+        1. `python3 scripts/redis-cluster-scale-horizontal.py <num_initial_servers> <num_redis_clients> <memcached_ip>`
+        2. On another client node: `cd build && ./redis_perf <node-id> <num-local-threads> <num-total-threads> <memcached-ip> <workload> <redis-ip> <execution-time> <output-fname> cluster`. The `<workload>` should be in `[ycsba, ycsbb, ycsbc, ycsbd]` and The `<execution-time>` controls how long each thread iterates with the workload. Note that this program will automatically read the workload file in `../workloads/ycsb`, hence must be executed in the `build` directory. An output will be written to `build/results` as a json file.
+    - Vertical Scaling
+        0. In `scripts/redis-cluster-scale-vertical.py`, modify the two variables to control the execution time `seconds_before_scale` and `seconds_before_shrink`.
+        1. `python3 scripts/redis-cluster-scale-horizontal.py <num_redis_clients> <memcached_ip>`
+        2. On another client node: `cd build && ./redis_perf <node-id> <num-local-threads> <num-total-threads> <memcached-ip> <workload> <redis-ip> <execution-time> <output-fname> cluster`. The `<workload>` should be in `[ycsba, ycsbb, ycsbc, ycsbd]` and The `<execution-time>` controls how long each thread iterates with the workload. Note that this program will automatically read the workload file in `../workloads/ycsb`, hence must be executed in the `build` directory. An output will be written to `build/results` as a json file.
 
 **Note 1: In all above commands, the `<redis-ip>` field should be a URI with a scheme, *e.g.*, `tcp://127.0.0.1:7000`.**  
 **Note 2: Create a `results` directory under the `build` directory. Otherwise, results can be lost.**  
 **Note 3: When executing Twitter workloads, we do not load data first.**  
 **Note 4: For `dmc_cluster` mode, we use `dmc_cluster_config.json` to setup nodes in the cluster and the number of initial servers and the number of scale servers (for elasticity experiment).**  
+**Note 5: For Redis elasticity test, we use the `<execution-time>` of `redis-perf` to control the time for executing the workload.**  
 
 # Output Format
 ```json
