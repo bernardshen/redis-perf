@@ -86,8 +86,7 @@ void *worker(void *_args) {
           // printd(L_DEBUG, "val = %s", tmp_val.value().c_str());
         } else {
           // printd(L_DEBUG, "add a new key %s", key.c_str());
-          // TODO: enable this check after testing on redis
-          // assert(is_twitter || is_ycsbd);
+          assert(is_twitter || is_ycsbd);
           redis->set(key, val);
         }
       } else {

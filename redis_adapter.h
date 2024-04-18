@@ -3,9 +3,10 @@
 
 #include <atomic>
 #include <boost/crc.hpp>
+#include <random>
 #include <sw/redis++/redis++.h>
 
-#define DMC_CLUSTER_STATISTICS
+// #define DMC_CLUSTER_STATISTICS
 
 using namespace sw::redis;
 
@@ -45,6 +46,9 @@ class DMCClusterAdapter : public MyRedisAdapter {
   std::vector<Redis> dmc_cluster_;
   std::vector<std::string> dmc_cluster_ips_;
   boost::crc_32_type crc_processor_;
+  std::random_device rd_;
+  std::mt19937 gen_;
+  std::uniform_int_distribution<> dist_;
 
   static std::atomic<uint32_t> num_alive_servers_;
 #ifdef DMC_CLUSTER_STATISTICS
@@ -52,7 +56,8 @@ class DMCClusterAdapter : public MyRedisAdapter {
 #endif
 
 public:
-  DMCClusterAdapter(char dmc_cluster_ips[32][256], int num_total_servers) {
+  DMCClusterAdapter(char dmc_cluster_ips[32][256], int num_total_servers)
+      : gen_(rd_()), dist_(0, 999) {
     for (int i = 0; i < num_total_servers; i++) {
       std::string str_ip(dmc_cluster_ips[i]);
       dmc_cluster_.emplace_back(str_ip);
@@ -63,8 +68,10 @@ public:
 
   OptionalString get(std::string key) override {
     crc_processor_.process_bytes(key.data(), key.length());
-    uint32_t target_server = crc_processor_.checksum() %
-                             num_alive_servers_.load(std::memory_order_acquire);
+    uint32_t target_server =
+        dist_(gen_) % num_alive_servers_.load(std::memory_order_acquire);
+    // uint32_t target_server = crc_processor_.checksum() %
+    //                          num_alive_servers_.load(std::memory_order_acquire);
 #ifdef DMC_CLUSTER_STATISTICS
     access_vector_[target_server].fetch_add(1);
 #endif
