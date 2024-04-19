@@ -23,10 +23,13 @@ def create_config(template_fname, server_ports, my_server_ip):
         with open(f'./{p}/redis.conf', 'w') as f:
             f.write(config_templ.format(p, p, my_server_ip))
 
-def start_instances(server_ports):
+def start_instances(server_ports, bind_cores=False):
     for i, p in enumerate(server_ports):
+        bind_core_cmd = ''
+        if bind_cores:
+            bind_core_cmd = f'taskset -c {i % _NUM_CORES}'
         os.system(f'cd {p}; \
-                  taskset -c {i % _NUM_CORES} redis-server ./redis.conf; cd ..')
+                  {bind_core_cmd} redis-server ./redis.conf; cd ..')
 
 def create_cluster(nodes_ip):
     cmd = 'redis-cli --cluster create ' + ' '.join(nodes_ip) + ' --cluster-yes'

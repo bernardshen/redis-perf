@@ -52,7 +52,7 @@ redis_utils.cleanup_servers(server_ports, mkdir=True)
 redis_utils.create_config('redis-large.conf.templ', server_ports, my_server_ip)
 
 # start redis instances
-redis_utils.start_instances(server_ports)
+redis_utils.start_instances(server_ports, bind_cores=True)
 
 time.sleep(2)
 # create a redis cluster with all initial nodes
