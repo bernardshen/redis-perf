@@ -17,7 +17,8 @@ if [ "$wl" == "twitter" ]; then
     fi
     wget https://ftp.pdl.cmu.edu/pub/datasets/twemcacheWorkload/open_source/cluster3.sort.zst
     wget https://ftp.pdl.cmu.edu/pub/datasets/twemcacheWorkload/open_source/cluster1.sort.zst
-    wget https://ftp.pdl.cmu.edu/pub/datasets/twemcacheWorkload/open_source/cluster5.sort.zst
+    # wget https://ftp.pdl.cmu.edu/pub/datasets/twemcacheWorkload/open_source/cluster5.sort.zst
+    wget https://ftp.pdl.cmu.edu/pub/datasets/twemcacheWorkload/open_source/cluster16.sort.zst
 
     # decompress cluster3 (storage)
     zstd -d ./cluster3.sort.zst
@@ -31,9 +32,9 @@ if [ "$wl" == "twitter" ]; then
     mv ./cluster1.sort.zst twitter
     rm ./cluster1.sort
 
-    # decompress cluster5 (transient)
-    zstd -d ./cluster5.sort.zst
-    head ./cluster5.sort -n 50000000 > twitter/twitter-transient
-    mv ./cluster5.sort.zst twitter
-    rm ./cluster5.sort
+    # decompress cluster16 (transient)
+    zstd -d ./cluster16.sort.zst
+    head ./cluster16.sort -n 50000000 > twitter/twitter-transient
+    mv ./cluster16.sort.zst twitter
+    rm ./cluster16.sort
 fi
