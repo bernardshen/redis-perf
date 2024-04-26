@@ -17,10 +17,6 @@ seconds_before_shrink = 5
 NUM_CORES = psutil.cpu_count(logical=False)
 redis_utils.set_cores(NUM_CORES)
 
-mc = memcache.Client([memcached_ip])
-assert (mc != None)
-mc.flush_all()
-
 
 def SIGINT_handler(sig, frame):
     global num_all_servers
@@ -44,6 +40,9 @@ if num_initial_servers < 3:
     print("We only support creating an initial cluster with more than three nodes")
     exit(1)
 
+mc = memcache.Client([memcached_ip])
+assert (mc != None)
+mc.flush_all()
 
 server_ports = [server_port_st + i for i in range(num_all_servers)]
 initial_ports = [server_port_st + i for i in range(num_initial_servers)]

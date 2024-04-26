@@ -17,10 +17,6 @@ seconds_before_shrink = 5
 NUM_CORES = psutil.cpu_count(logical=False)
 redis_utils.set_cores(NUM_CORES)
 
-mc = memcache.Client([memcached_ip])
-assert (mc != None)
-mc.flush_all()
-
 
 def SIGINT_handler(sig, frame):
     global num_all_servers
@@ -37,6 +33,10 @@ if len(sys.argv) != 3:
 
 num_redis_clients = int(sys.argv[1].strip())
 memcached_ip = sys.argv[2].strip()
+
+mc = memcache.Client([memcached_ip])
+assert (mc != None)
+mc.flush_all()
 
 num_all_servers = 5
 server_ports = [7000, 7001, 7002, 7003, 7004]
