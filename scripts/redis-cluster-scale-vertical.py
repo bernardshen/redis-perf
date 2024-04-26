@@ -17,6 +17,10 @@ seconds_before_shrink = 5
 NUM_CORES = psutil.cpu_count(logical=False)
 redis_utils.set_cores(NUM_CORES)
 
+mc = memcache.Client([memcached_ip])
+assert (mc != None)
+mc.flush_all()
+
 
 def SIGINT_handler(sig, frame):
     global num_all_servers
@@ -61,14 +65,17 @@ redis_utils.create_cluster(initial_nodes)
 
 # reshard slots to 1 node
 print("Reshard the cluster to 1 node")
-port_node_id, node_id_port = redis_utils.get_node_id_port_map(initial_ports, my_server_ip)
+port_node_id, node_id_port = redis_utils.get_node_id_port_map(
+    initial_ports, my_server_ip)
 
 port_slots = redis_utils.get_port_slot_map(initial_ports, my_server_ip)
 
 
-redis_utils.cluster_reshard(f'{my_server_ip}:7000', port_node_id[7001], port_node_id[7000], port_slots[7001])
+redis_utils.cluster_reshard(
+    f'{my_server_ip}:7000', port_node_id[7001], port_node_id[7000], port_slots[7001])
 time.sleep(2)
-redis_utils.cluster_reshard(f'{my_server_ip}:7000', port_node_id[7002], port_node_id[7000], port_slots[7002])
+redis_utils.cluster_reshard(
+    f'{my_server_ip}:7000', port_node_id[7002], port_node_id[7000], port_slots[7002])
 
 time.sleep(10)
 redis_utils.cluster_del_node(f'{my_server_ip}:7000', port_node_id[7001])
@@ -84,9 +91,6 @@ for p in [scale_port, shrink_port]:
 print("Finished cluster creation!")
 
 # sync ycsb load
-mc = memcache.Client([memcached_ip])
-assert (mc != None)
-mc.flush_all()
 print("Wait all clients ready.")
 for i in range(1, num_redis_clients + 1):
     ready_msg = f'client-{i}-ready-0'
@@ -111,7 +115,8 @@ print("Notify all clients start trans")
 time.sleep(seconds_before_scale)
 print("Start scaling")
 reshard_st = time.time()
-redis_utils.cluster_reshard(f'{my_server_ip}:7000', port_node_id[7000], port_node_id[scale_port], 16384)
+redis_utils.cluster_reshard(
+    f'{my_server_ip}:7000', port_node_id[7000], port_node_id[scale_port], 16384)
 reshard_et = time.time()
 reshard_time = int(reshard_et - reshard_st)
 print(f"Reshard takes {reshard_time} seconds")
@@ -120,7 +125,8 @@ print(f"Reshard takes {reshard_time} seconds")
 time.sleep(seconds_before_shrink)
 print("Start shrinking")
 shrink_st = time.time()
-redis_utils.cluster_reshard(f'{my_server_ip}:7000', port_node_id[scale_port], port_node_id[shrink_port], 16384)
+redis_utils.cluster_reshard(
+    f'{my_server_ip}:7000', port_node_id[scale_port], port_node_id[shrink_port], 16384)
 shrink_et = time.time()
 shrink_time = shrink_et - shrink_st
 print(f"Shrink takes {shrink_time} seconds")

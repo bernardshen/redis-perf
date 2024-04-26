@@ -17,6 +17,10 @@ seconds_before_shrink = 5
 NUM_CORES = psutil.cpu_count(logical=False)
 redis_utils.set_cores(NUM_CORES)
 
+mc = memcache.Client([memcached_ip])
+assert (mc != None)
+mc.flush_all()
+
 
 def SIGINT_handler(sig, frame):
     global num_all_servers
@@ -72,13 +76,11 @@ for instance in scale_nodes:
 port_slots = redis_utils.get_port_slot_map(server_ports, my_server_ip)
 
 # get ip_node_id and node_id_ip map
-port_node_id, node_id_port = redis_utils.get_node_id_port_map(server_ports, my_server_ip)
+port_node_id, node_id_port = redis_utils.get_node_id_port_map(
+    server_ports, my_server_ip)
 print("Finished cluster creation!")
 
 # sync ycsb load
-mc = memcache.Client([memcached_ip])
-assert (mc != None)
-mc.flush_all()
 print("Wait all clients ready.")
 for i in range(1, num_redis_clients + 1):
     ready_msg = f'client-{i}-ready-0'
@@ -104,7 +106,8 @@ time.sleep(seconds_before_scale)
 print("Start scaling out")
 reshard_st = time.time()
 for i, port in enumerate(initial_ports):
-    redis_utils.cluster_reshard(f'{my_server_ip}:7000', port_node_id[port], port_node_id[scale_ports[i]], port_slots[port]//2)
+    redis_utils.cluster_reshard(
+        f'{my_server_ip}:7000', port_node_id[port], port_node_id[scale_ports[i]], port_slots[port]//2)
     port_slots[scale_ports[i]] = port_slots[port]//2
     port_slots[port] = port_slots[port] - port_slots[port]//2
 reshard_et = time.time()
@@ -116,7 +119,8 @@ time.sleep(seconds_before_shrink)
 print("Start scaling in")
 shrink_st = time.time()
 for i, port in enumerate(initial_ports):
-    redis_utils.cluster_reshard(f'{my_server_ip}:7000', port_node_id[scale_ports[i]], port_node_id[port], port_slots[scale_ports[i]])
+    redis_utils.cluster_reshard(
+        f'{my_server_ip}:7000', port_node_id[scale_ports[i]], port_node_id[port], port_slots[scale_ports[i]])
 shrink_et = time.time()
 shrink_time = shrink_et - shrink_st
 print(f"Shrink takes {shrink_time} seconds")
