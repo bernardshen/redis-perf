@@ -126,7 +126,7 @@ time.sleep(seconds_before_shrink)
 print("Start shrinking")
 shrink_st = time.time()
 redis_utils.cluster_reshard(
-    f'{my_server_ip}:7000', port_node_id[scale_port], port_node_id[shrink_port], 16384)
+    f'{my_server_ip}:{scale_port}', port_node_id[scale_port], port_node_id[shrink_port], 16384)
 shrink_et = time.time()
 shrink_time = shrink_et - shrink_st
 print(f"Shrink takes {shrink_time} seconds")
