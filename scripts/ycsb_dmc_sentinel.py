@@ -2,7 +2,7 @@ import memcache
 import time
 import sys
 
-seconds_before_faile = 5
+seconds_before_fail = 5
 seconds_before_rereplicate = 5
 
 if __name__ == '__main__':
