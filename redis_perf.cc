@@ -53,6 +53,7 @@ void *worker(void *_args) {
       redis->set(key, val);
     } catch (const Error &e) {
       printd(L_ERROR, "Failed to set key %s, retrying", key.c_str());
+      redis = get_redis(args);
       goto set_retry;
     }
   }
