@@ -16,7 +16,7 @@ if __name__ == '__main__':
 
     # sync ycsb load
     print("Wait all clients ready.")
-    for i in range(1, num_redis_clients + 1):
+    for i in range(1, num_clients + 1):
         ready_msg = f'client-{i}-ready-0'
         val = mc.get(ready_msg)
         while val == None:
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     mc.set('all-client-ready-0', 1)  # clients start loading
 
     # wait all clients load ready and sync their to execute trans
-    for i in range(1, num_redis_clients + 1):
+    for i in range(1, num_clients + 1):
         ready_msg = f'client-{i}-ready-1'
         val = mc.get(ready_msg)
         while val == None:
