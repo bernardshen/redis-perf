@@ -37,9 +37,9 @@ if __name__ == '__main__':
     print("Notify all clients start trans")
 
     # scale out
+    time.sleep(seconds_before_fail)
     print("Kill primary")
     redis_utils.kill_servers([7000])
-    time.sleep(seconds_before_fail)
     mc.set('dmc-primary-failed', 1)
 
     # scale in
