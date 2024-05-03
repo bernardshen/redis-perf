@@ -3,8 +3,13 @@
 
 #include <atomic>
 #include <boost/crc.hpp>
+#include <memory>
 #include <random>
+#include <stdint.h>
+#include <string>
 #include <sw/redis++/redis++.h>
+
+#include "utils.h"
 
 // #define DMC_CLUSTER_STATISTICS
 
@@ -106,5 +111,111 @@ std::atomic<uint32_t> DMCClusterAdapter::num_alive_servers_ = 0;
 #ifdef DMC_CLUSTER_STATISTICS
 std::atomic<uint32_t> DMCClusterAdapter::access_vector_[32] = {0};
 #endif
+
+class RedisSentinelAdapter : public MyRedisAdapter {
+  SentinelOptions sentinel_opts_;
+  std::shared_ptr<Sentinel> sentinel_;
+  std::vector<Redis> redis_nodes_;
+
+public:
+  RedisSentinelAdapter(const std::string &redis_ip) {
+    std::string stripped = redis_ip.substr(6);
+    std::size_t delimiter = stripped.find(':');
+    std::string ip = stripped.substr(0, delimiter);
+    std::string port = stripped.substr(delimiter + 1);
+    sentinel_opts_.nodes = {{ip, std::stoi(port.c_str())}};
+    sentinel_ = std::make_shared<Sentinel>(sentinel_opts_);
+
+    ConnectionOptions connection_opts;
+    connection_opts.connect_timeout = std::chrono::milliseconds(100);
+    connection_opts.socket_timeout = std::chrono::milliseconds(100);
+
+    ConnectionPoolOptions pool_opts;
+    redis_nodes_.emplace_back(sentinel_, "master", Role::MASTER,
+                              connection_opts, pool_opts);
+    redis_nodes_.emplace_back(sentinel_, "slave", Role::SLAVE, connection_opts,
+                              pool_opts);
+  }
+
+  OptionalString get(std::string key) override {
+    struct timeval cur;
+    gettimeofday(&cur, NULL);
+    try {
+      return redis_nodes_[cur.tv_usec % 2].get(key);
+    } catch (const Error &e) {
+      return redis_nodes_[0].get(key);
+    }
+  }
+
+  bool set(std::string key, std::string val) override {
+    return redis_nodes_[0].set(key, val);
+  }
+};
+
+class DMCSentinelAdapter : public MyRedisAdapter {
+  std::vector<Redis> dmc_nodes_;
+  std::vector<std::string> dmc_node_ips_;
+  static std::atomic<uint32_t> primary_idx_;
+
+public:
+  DMCSentinelAdapter(char dmc_sentinel_ips[32][256], int num_initial_servers) {
+    for (int i = 0; i < num_initial_servers; i++) {
+      std::string str_ip(dmc_sentinel_ips[i]);
+      dmc_nodes_.emplace_back(str_ip);
+      dmc_node_ips_.emplace_back(str_ip);
+    }
+    // assert(num_alive_servers_.load() <= dmc_cluster_.size());
+  }
+  OptionalString get(std::string key) override {
+    struct timeval cur;
+    gettimeofday(&cur, NULL);
+    uint32_t cur_primary = primary_idx_.load(std::memory_order_acquire);
+    uint32_t num_alive = dmc_nodes_.size() - cur_primary;
+    uint32_t target_node = cur_primary + (cur.tv_usec % num_alive);
+
+    try {
+      return dmc_nodes_[target_node].get(key);
+    } catch (const Error &e) {
+      return dmc_nodes_[1].get(key);
+    }
+  }
+
+  bool set(std::string key, std::string val) override {
+    try {
+      uint32_t cur_primary = primary_idx_.load(std::memory_order_acquire);
+      return dmc_nodes_[cur_primary].set(key, val);
+    } catch (const Error &e) {
+      return dmc_nodes_[1].set(key, val);
+    }
+  }
+
+  void connect_new_backup(const std::string ip) {
+    dmc_nodes_.emplace_back(ip);
+    dmc_node_ips_.emplace_back(ip);
+  }
+
+  static void set_primary(int primary_idx) {
+    printd(L_INFO, "switch priamry to %d", primary_idx);
+    primary_idx_.store(primary_idx, std::memory_order_release);
+  }
+};
+std::atomic<uint32_t> DMCSentinelAdapter::primary_idx_ = 0;
+
+static inline MyRedisAdapter *get_redis(ClientArgs *args) {
+  if (args->mode == MOD_CLUSTER) {
+    return new RedisClusterAdapter(args->redis_ip);
+  } else if (args->mode == MOD_SINGLE) {
+    return new RedisAdapter(args->redis_ip);
+  } else if (args->mode == MOD_SENTINEL) {
+    return new RedisSentinelAdapter(args->redis_ip);
+  } else if (args->mode == MOD_DMC_SENTINEL) {
+    return new DMCSentinelAdapter(args->dmc_cluster_ips,
+                                  args->num_dmc_cluster_total_servers);
+  } else {
+    assert(args->mode == MOD_DMC_CLUSTER);
+    return new DMCClusterAdapter(args->dmc_cluster_ips,
+                                 args->num_dmc_cluster_total_servers);
+  }
+}
 
 #endif

@@ -20,20 +20,29 @@ def cleanup_servers(server_ports, mkdir=False):
             os.mkdir(f'./{p}')
 
 
-def create_config(template_fname, server_ports, my_server_ip):
+def create_config(template_fname, server_ports, *args):
     config_templ = open(template_fname, 'r').read()
     for p in server_ports:
         with open(f'./{p}/redis.conf', 'w') as f:
-            f.write(config_templ.format(p, p, my_server_ip))
+            f.write(config_templ.format(p, p, *args))
+
+# def create_config(template_fname, server_ports, my_server_ip):
+#     config_templ = open(template_fname, 'r').read()
+#     for p in server_ports:
+#         with open(f'./{p}/redis.conf', 'w') as f:
+#             f.write(config_templ.format(p, p, my_server_ip))
 
 
-def start_instances(server_ports, bind_cores=False):
+def start_instances(server_ports, bind_cores=False, sentinel=False):
     for i, p in enumerate(server_ports):
         bind_core_cmd = ''
+        sentinel_cmd = ''
         if bind_cores:
-            bind_core_cmd = f'taskset -c {i % _NUM_CORES}'
+            bind_core_cmd = f'taskset -c {p % _NUM_CORES}'
+        if sentinel:
+            sentinel_cmd = '--sentinel'
         os.system(f'cd {p}; \
-                  {bind_core_cmd} redis-server ./redis.conf; cd ..')
+                  {bind_core_cmd} redis-server ./redis.conf {sentinel_cmd}; cd ..')
 
 
 def create_cluster(nodes_ip):
@@ -102,3 +111,12 @@ def cluster_del_node(master_ip, node_id):
 def cluster_add_node(master_ip, new_node_ip):
     os.system(f"redis-cli --cluster add-node {new_node_ip} {master_ip}")
     time.sleep(5)
+
+
+def kill_servers(port_list):
+    for p in port_list:
+        if not os.path.exists(f'./{p}/pid'):
+            print(f"Port {p} is not executing")
+            break
+        pid = int(open(f'./{p}/pid', 'r').read())
+        os.system(f'sudo kill -9 {pid}')

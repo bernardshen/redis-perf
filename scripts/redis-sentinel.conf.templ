@@ -1,0 +1,9 @@
+port {}
+loglevel notice
+daemonize yes
+logfile log-{}
+bind {} 127.0.0.1
+pidfile pid
+sentinel monitor master {} {} 1
+sentinel down-after-milliseconds master 5000
+sentinel failover-timeout master 180000

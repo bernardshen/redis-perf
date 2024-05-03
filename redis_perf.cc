@@ -20,16 +20,7 @@ using json = nlohmann::json;
 void *worker(void *_args) {
   ClientArgs *args = (ClientArgs *)_args;
   DMCMemcachedClient con_client(args->controller_ip);
-  MyRedisAdapter *redis;
-  if (args->mode == MOD_CLUSTER) {
-    redis = new RedisClusterAdapter(args->redis_ip);
-  } else if (args->mode == MOD_SINGLE) {
-    redis = new RedisAdapter(args->redis_ip);
-  } else {
-    assert(args->mode == MOD_DMC_CLUSTER);
-    redis = new DMCClusterAdapter(args->dmc_cluster_ips,
-                                  args->num_dmc_cluster_total_servers);
-  }
+  MyRedisAdapter *redis = get_redis(args);
 
   int ret = stick_this_thread_to_core(args->core);
   if (ret)
@@ -147,9 +138,10 @@ int main(int argc, char **argv) {
   strcpy(save_fname, argv[8]);
   strcpy(mode, argv[9]);
   if (strcmp("cluster", mode) != 0 && strcmp("single", mode) != 0 &&
-      strcmp("dmc_cluster", mode) != 0) {
-    printd(L_ERROR,
-           "mode can be either [cluster] or [single] or [dmc_cluster]");
+      strcmp("dmc_cluster", mode) != 0 && strcmp("sentinel", mode) != 0 &&
+      strcmp("dmc_sentinel", mode) != 0) {
+    printd(L_ERROR, "mode can be either [cluster] or [single] or [dmc_cluster] "
+                    "or [sentinel] or [dmc_sentinel]");
     return 1;
   }
 
@@ -160,6 +152,10 @@ int main(int argc, char **argv) {
     initial_args.mode = MOD_DMC_CLUSTER;
   } else if (strcmp("cluster", mode) == 0) {
     initial_args.mode = MOD_CLUSTER;
+  } else if (strcmp("sentinel", mode) == 0) {
+    initial_args.mode = MOD_SENTINEL;
+  } else if (strcmp("dmc_sentinel", mode) == 0) {
+    initial_args.mode = MOD_DMC_SENTINEL;
   } else {
     assert(strcmp("single", mode) == 0);
     initial_args.mode = MOD_SINGLE;

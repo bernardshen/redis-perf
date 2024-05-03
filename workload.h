@@ -69,7 +69,7 @@ static void load_workload_ycsb(char *wl_name, int num_load_ops,
                                __OUT Workload *load_wl,
                                __OUT Workload *trans_wl) {
   char fname_buf[256];
-  sprintf(fname_buf, "%s.load", wl_name);
+  sprintf(fname_buf, "ycsb.load");
   // server_id starts with 1
   load_ycsb_single(fname_buf, num_load_ops, server_id, all_client_num, load_wl);
 
