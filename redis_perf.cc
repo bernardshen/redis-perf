@@ -110,12 +110,13 @@ void *worker(void *_args) {
 
 char save_fname[256];
 char mode[256];
+char experiment[256];
 
 int main(int argc, char **argv) {
-  if (argc != 10) {
+  if (argc != 11) {
     printd(L_ERROR,
            "Usage: %s <node_id> <num_threads> <all_thread_num> <memcached_ip> "
-           "<workload> <redis_ip> <run_time> <fname> <mode>",
+           "<workload> <redis_ip> <run_time> <fname> <mode> <experiment>",
            argv[0]);
     exit(1);
   }
@@ -138,6 +139,14 @@ int main(int argc, char **argv) {
                     "or [sentinel] or [dmc_sentinel]");
     return 1;
   }
+  strcpy(experiment, argv[10]);
+  if (strcmp("normal", experiment) != 0 &&
+      strcmp("elasticity", experiment) != 0 &&
+      strcmp("recovery", experiment) != 0) {
+    printd(L_ERROR, "experiment can be either [normal] or [elasticity] or "
+                    "[recovery]");
+    return 1;
+  }
 
   if (strcmp("dmc_cluster", mode) == 0) {
     load_dmc_cluster_config("../dmc_cluster_config.json", &initial_args);
@@ -156,6 +165,15 @@ int main(int argc, char **argv) {
   } else {
     assert(strcmp("single", mode) == 0);
     initial_args.mode = MOD_SINGLE;
+  }
+
+  if (strcmp("normal", experiment) == 0) {
+    initial_args.exp = EXP_NORMAL;
+  } else if (strcmp("recovery", experiment) == 0) {
+    initial_args.exp = EXP_RECOVERY;
+  } else {
+    assert(strcmp("elasticity", experiment) == 0);
+    initial_args.exp = EXP_ELASTICITY;
   }
 
   long num_cores = sysconf(_SC_NPROCESSORS_ONLN);
@@ -187,7 +205,8 @@ int main(int argc, char **argv) {
   }
 
   // wait for load barrier
-  if (initial_args.mode == MOD_DMC_SENTINEL) {
+  if (initial_args.mode == MOD_DMC_SENTINEL &&
+      initial_args.exp == EXP_RECOVERY) {
     DMCMemcachedClient con_client(args->controller_ip);
     con_client.memcached_wait("dmc-primary-failed");
     DMCSentinelAdapter::set_primary(1);
