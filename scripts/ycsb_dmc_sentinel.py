@@ -1,6 +1,7 @@
 import memcache
 import time
 import sys
+import redis_utils
 
 seconds_before_fail = 5
 seconds_before_rereplicate = 5
@@ -36,6 +37,8 @@ if __name__ == '__main__':
     print("Notify all clients start trans")
 
     # scale out
+    print("Kill primary")
+    redis_utils.kill_servers([7000])
     time.sleep(seconds_before_fail)
     mc.set('dmc-primary-failed', 1)
 
