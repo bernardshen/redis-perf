@@ -41,7 +41,7 @@ def start_instances(server_ports, bind_cores=False, sentinel=False):
             bind_core_cmd = f'taskset -c {p % _NUM_CORES}'
         if sentinel:
             sentinel_cmd = '--sentinel'
-        os.system(f'cd {p}; \
+        os.system(f'ulimit -n 65536; cd {p}; \
                   {bind_core_cmd} redis-server ./redis.conf {sentinel_cmd}; cd ..')
 
 

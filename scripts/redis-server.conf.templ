@@ -1,12 +1,14 @@
 port {}
 # disable disk snapshot
 save ""
+stop-writes-on-bgsave-error no
 daemonize yes
 loglevel notice
 logfile log-{}
 pidfile pid
 repl-diskless-sync yes
 repl-diskless-sync-delay 0
+repl-backlog-size 100mb
 bind {} 127.0.0.1
 protected-mode no
 io-threads 2
