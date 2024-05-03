@@ -2,9 +2,8 @@
     "cluster_ips": [
         "tcp://10.10.1.2:7000",
         "tcp://10.10.1.2:7001",
-        "tcp://10.10.1.2:7002",
-        "tcp://10.10.1.2:7003"
+        "tcp://10.10.1.2:7002"
     ],
     "num_initial_servers": 2,
-    "num_scale_servers": 4
+    "num_scale_servers": 3
 }

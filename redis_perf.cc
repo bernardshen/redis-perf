@@ -52,8 +52,8 @@ void *worker(void *_args) {
     try {
       redis->set(key, val);
     } catch (const Error &e) {
+      std::cout << e.what() << std::endl;
       printd(L_ERROR, "Failed to set key %s, retrying", key.c_str());
-      redis = get_redis(args);
       goto set_retry;
     }
   }
@@ -71,6 +71,7 @@ void *worker(void *_args) {
   // sync to do trans
   printd(L_DEBUG, "Client %d waiting sync", args->cid);
   con_client.memcached_sync_ready(args->cid);
+  printd(L_DEBUG, "Client %d start trans", args->cid);
   gettimeofday(&st, NULL);
   while (cur_tick < num_ticks) {
     uint32_t idx = seq % trans_wl.num_ops;
@@ -92,14 +93,6 @@ void *worker(void *_args) {
     } catch (const Error &e) {
       printd(L_ERROR, "Client %d failed %s, reconnect and retry", args->cid,
              key.c_str());
-      if (args->mode == MOD_CLUSTER) {
-        redis = new RedisClusterAdapter(args->redis_ip);
-      } else if (args->mode == MOD_SINGLE) {
-        redis = new RedisAdapter(args->redis_ip);
-      } else {
-        redis = new DMCClusterAdapter(args->dmc_cluster_ips,
-                                      args->num_dmc_cluster_total_servers);
-      }
       goto trans_retry;
     }
     seq++;
@@ -156,6 +149,9 @@ int main(int argc, char **argv) {
   } else if (strcmp("sentinel", mode) == 0) {
     initial_args.mode = MOD_SENTINEL;
   } else if (strcmp("dmc_sentinel", mode) == 0) {
+    load_dmc_cluster_config("../dmc_cluster_config.json", &initial_args);
+    DMCClusterAdapter::update_num_servers(
+        initial_args.num_dmc_cluster_initial_servers);
     initial_args.mode = MOD_DMC_SENTINEL;
   } else {
     assert(strcmp("single", mode) == 0);
@@ -191,6 +187,13 @@ int main(int argc, char **argv) {
   }
 
   // wait for load barrier
+  if (initial_args.mode == MOD_DMC_SENTINEL) {
+    DMCMemcachedClient con_client(args->controller_ip);
+    con_client.memcached_wait("dmc-primary-failed");
+    DMCSentinelAdapter::set_primary(1);
+    con_client.memcached_wait("dmc-backup-created");
+    DMCSentinelAdapter::connect_backup();
+  }
 
   for (int i = 0; i < num_threads; i++) {
     pthread_join(tids[i], NULL);
@@ -220,6 +223,10 @@ int main(int argc, char **argv) {
   if (initial_args.mode == MOD_DMC_CLUSTER) {
     printf("Access vector: ");
     DMCClusterAdapter::print_access_vector();
+  }
+  if (initial_args.mode == MOD_DMC_SENTINEL) {
+    printf("Access vector: ");
+    DMCSentinelAdapter::print_access_vector();
   }
 
   json merged_res;

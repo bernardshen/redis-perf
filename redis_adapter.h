@@ -11,7 +11,7 @@
 
 #include "utils.h"
 
-// #define DMC_CLUSTER_STATISTICS
+#define DMC_CLUSTER_STATISTICS
 
 using namespace sw::redis;
 
@@ -131,6 +131,7 @@ public:
     connection_opts.socket_timeout = std::chrono::milliseconds(100);
 
     ConnectionPoolOptions pool_opts;
+    pool_opts.size = 1;
     redis_nodes_.emplace_back(sentinel_, "master", Role::MASTER,
                               connection_opts, pool_opts);
     redis_nodes_.emplace_back(sentinel_, "slave", Role::SLAVE, connection_opts,
@@ -156,17 +157,29 @@ class DMCSentinelAdapter : public MyRedisAdapter {
   std::vector<Redis> dmc_nodes_;
   std::vector<std::string> dmc_node_ips_;
   static std::atomic<uint32_t> primary_idx_;
+  static std::atomic<bool> connect_backup_;
+#ifdef DMC_CLUSTER_STATISTICS
+  static std::atomic<uint32_t> access_vector_[32];
+#endif
 
 public:
-  DMCSentinelAdapter(char dmc_sentinel_ips[32][256], int num_initial_servers) {
+  DMCSentinelAdapter(char dmc_sentinel_ips[32][256], int num_initial_servers,
+                     int num_total_servers) {
     for (int i = 0; i < num_initial_servers; i++) {
       std::string str_ip(dmc_sentinel_ips[i]);
       dmc_nodes_.emplace_back(str_ip);
+    }
+    for (int i = 0; i < num_total_servers; i++) {
+      std::string str_ip(dmc_sentinel_ips[i]);
       dmc_node_ips_.emplace_back(str_ip);
     }
     // assert(num_alive_servers_.load() <= dmc_cluster_.size());
   }
   OptionalString get(std::string key) override {
+    if (connect_backup_.load(std::memory_order_acquire) &&
+        dmc_nodes_.size() < dmc_node_ips_.size()) {
+      dmc_nodes_.emplace_back(dmc_node_ips_[2]);
+    }
     struct timeval cur;
     gettimeofday(&cur, NULL);
     uint32_t cur_primary = primary_idx_.load(std::memory_order_acquire);
@@ -174,13 +187,24 @@ public:
     uint32_t target_node = cur_primary + (cur.tv_usec % num_alive);
 
     try {
-      return dmc_nodes_[target_node].get(key);
+      OptionalString val = dmc_nodes_[target_node].get(key);
+#ifdef DMC_CLUSTER_STATISTICS
+      access_vector_[target_node].fetch_add(1);
+#endif
+      return val;
     } catch (const Error &e) {
+#ifdef DMC_CLUSTER_STATISTICS
+      access_vector_[1].fetch_add(1);
+#endif
       return dmc_nodes_[1].get(key);
     }
   }
 
   bool set(std::string key, std::string val) override {
+    if (connect_backup_.load(std::memory_order_acquire) &&
+        dmc_nodes_.size() < dmc_node_ips_.size()) {
+      dmc_nodes_.emplace_back(dmc_node_ips_[2]);
+    }
     try {
       uint32_t cur_primary = primary_idx_.load(std::memory_order_acquire);
       return dmc_nodes_[cur_primary].set(key, val);
@@ -198,8 +222,25 @@ public:
     printd(L_INFO, "switch priamry to %d", primary_idx);
     primary_idx_.store(primary_idx, std::memory_order_release);
   }
+  static void connect_backup() {
+    printd(L_INFO, "connect to new backup");
+    connect_backup_.store(true);
+  }
+
+  static void print_access_vector() {
+#ifdef DMC_CLUSTER_STATISTICS
+    for (int i = 0; i < 32; i++) {
+      printf("%d ", access_vector_[i].load());
+    }
+    printf("\n");
+#endif
+  }
 };
 std::atomic<uint32_t> DMCSentinelAdapter::primary_idx_ = 0;
+std::atomic<bool> DMCSentinelAdapter::connect_backup_ = false;
+#ifdef DMC_CLUSTER_STATISTICS
+std::atomic<uint32_t> DMCSentinelAdapter::access_vector_[32] = {0};
+#endif
 
 static inline MyRedisAdapter *get_redis(ClientArgs *args) {
   if (args->mode == MOD_CLUSTER) {
@@ -210,6 +251,7 @@ static inline MyRedisAdapter *get_redis(ClientArgs *args) {
     return new RedisSentinelAdapter(args->redis_ip);
   } else if (args->mode == MOD_DMC_SENTINEL) {
     return new DMCSentinelAdapter(args->dmc_cluster_ips,
+                                  args->num_dmc_cluster_initial_servers,
                                   args->num_dmc_cluster_total_servers);
   } else {
     assert(args->mode == MOD_DMC_CLUSTER);
