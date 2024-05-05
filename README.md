@@ -62,6 +62,7 @@ We support executing client threads on multiple nodes. Different nodes are synch
     - Memory node failures
         0. Prepare experiment settings:
             - Start 2 DMC servers one primary and one backup.
+            - In `dmc_cluster_config.json` set `num_initial_servers = 2` and `num_scale_servers = 2`. The IPs of DMC servers should also be set correctly.
             - Kill a memory node and rereplicate its memory regions.
         1. `python scripts/ycsb_dmc_sentinel.py <memcached-ip> <num-clients>`.
         2. On another client node: `cd build && ./redis_perf <node-id> <num-local-threads> <num-total-threads> <memcached-ip> <workload> <redis-ip> <execution-time> <output-fname> dmc_sentinel recovery`. The `<workload>` should be in `[ycsba, ycsbb, ycsbc, ycsbd, twitter-compute, twitter-storage, twitter-transient]` and The `<execution-time>` controls how long each thread iterates with the workload. Note that this program will automatically read the workload file in `../workloads/ycsb`, hence must be executed in the `build` directory. An output will be written to `build/results` as a json file.
